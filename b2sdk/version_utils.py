@@ -38,9 +38,7 @@ class AbstractVersionDecorator(metaclass=ABCMeta):
 
     @classmethod
     def _parse_if_not_none(cls, version):
-        if version is None:
-            return None
-        return parse_version(version)
+        return None if version is None else parse_version(version)
 
     @abstractmethod
     def __call__(self, func):

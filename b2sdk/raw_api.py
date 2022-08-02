@@ -329,10 +329,10 @@ class AbstractRawApi(metaclass=ABCMeta):
         pass
 
     def get_download_url_by_id(self, download_url, file_id):
-        return '%s/b2api/%s/b2_download_file_by_id?fileId=%s' % (download_url, API_VERSION, file_id)
+        return f'{download_url}/b2api/{API_VERSION}/b2_download_file_by_id?fileId={file_id}'
 
     def get_download_url_by_name(self, download_url, bucket_name, file_name):
-        return download_url + '/file/' + bucket_name + '/' + b2_url_encode(file_name)
+        return f'{download_url}/file/{bucket_name}/{b2_url_encode(file_name)}'
 
 
 class B2RawHTTPApi(AbstractRawApi):
@@ -366,14 +366,15 @@ class B2RawHTTPApi(AbstractRawApi):
         :return: the decoded JSON response
         :rtype: dict
         """
-        url = '%s/b2api/%s/%s' % (base_url, API_VERSION, api_name)
+        url = f'{base_url}/b2api/{API_VERSION}/{api_name}'
         headers = {'Authorization': auth}
         return self.b2_http.post_json_return_json(url, headers, params)
 
     def authorize_account(self, realm_url, application_key_id, application_key):
         auth = b'Basic ' + base64.b64encode(
-            ('%s:%s' % (application_key_id, application_key)).encode()
+            f'{application_key_id}:{application_key}'.encode()
         )
+
         return self._post_json(realm_url, 'b2_authorize_account', auth)
 
     def cancel_large_file(self, api_url, account_auth_token, file_id):
@@ -526,7 +527,7 @@ class B2RawHTTPApi(AbstractRawApi):
             )
             return response.headers
         except ResourceNotFound:
-            logger.debug("Resource Not Found: %s" % download_url)
+            logger.debug(f"Resource Not Found: {download_url}")
             raise FileOrBucketNotFound(bucket_name, file_name)
 
     def get_upload_url(self, api_url, account_auth_token, bucket_id):
@@ -735,8 +736,7 @@ class B2RawHTTPApi(AbstractRawApi):
         file_retention: FileRetentionSetting,
         bypass_governance: bool = False,
     ):
-        kwargs = {}
-        kwargs['fileRetention'] = file_retention.serialize_to_json_for_request()
+        kwargs = {'fileRetention': file_retention.serialize_to_json_for_request()}
         try:
             return self._post_json(
                 api_url,
@@ -813,7 +813,10 @@ class B2RawHTTPApi(AbstractRawApi):
             raise UnusableFileName("Filename may not start or end with '/'.")
         if '//' in filename:
             raise UnusableFileName("Filename may not contain \"//\".")
-        long_segment = max([len(segment.encode('utf-8')) for segment in filename.split('/')])
+        long_segment = max(
+            len(segment.encode('utf-8')) for segment in filename.split('/')
+        )
+
         if long_segment > 250:
             raise UnusableFileName("Filename segment too long (maximum 250 bytes in utf-8).")
 

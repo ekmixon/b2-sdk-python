@@ -54,16 +54,17 @@ class FakeB2Folder(B2Folder):
         return [
             VFileVersion(
                 id_='id_%s_%d' % (name[0], abs(mod_time)),
-                file_name='folder/' + name,
+                file_name=f'folder/{name}',
                 upload_timestamp=abs(mod_time),
-                action='upload' if 0 < mod_time else 'hide',
+                action='upload' if mod_time > 0 else 'hide',
                 size=size,
                 file_info={'in_b2': 'yes'},
                 content_type='text/plain',
                 content_sha1='content_sha1',
                 **mandatory_kwargs,
-            ) for mod_time in mod_times
-        ]  # yapf disable
+            )
+            for mod_time in mod_times
+        ]
 
 
 class FakeLocalFolder(LocalFolder):
@@ -76,13 +77,12 @@ class FakeLocalFolder(LocalFolder):
             if single_path.relative_path.endswith('/'):
                 if policies_manager.should_exclude_b2_directory(single_path.relative_path):
                     continue
-            else:
-                if policies_manager.should_exclude_local_path(single_path):
-                    continue
+            elif policies_manager.should_exclude_local_path(single_path):
+                continue
             yield single_path
 
     def make_full_path(self, name):
-        return '/dir/' + name
+        return f'/dir/{name}'
 
     def _local_sync_path(self, name, mod_times, size=10):
         """
@@ -94,9 +94,7 @@ class FakeLocalFolder(LocalFolder):
 @pytest.fixture(scope='session')
 def folder_factory():
     def get_folder(f_type, *files):
-        if f_type == 'b2':
-            return FakeB2Folder(files)
-        return FakeLocalFolder(files)
+        return FakeB2Folder(files) if f_type == 'b2' else FakeLocalFolder(files)
 
     return get_folder
 

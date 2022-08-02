@@ -128,9 +128,9 @@ class UploadSourceLocalFileRange(UploadSourceLocalFile):
         self.offset = offset
         if length is None:
             self.content_length = self.file_size - self.offset
+        elif length + self.offset > self.file_size:
+            raise ValueError('Range length overflow file size')
         else:
-            if length + self.offset > self.file_size:
-                raise ValueError('Range length overflow file size')
             self.content_length = length
 
     def __repr__(self):

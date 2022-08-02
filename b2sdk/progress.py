@@ -131,7 +131,7 @@ class SimpleProgressListener(AbstractProgressListener):
     def bytes_completed(self, byte_count):
         now = time.time()
         elapsed = now - self.last_time
-        if 3 <= elapsed and self.total != 0:
+        if elapsed >= 3 and self.total != 0:
             if not self.any_printed:
                 print(self.desc)
             print('     %d%%' % int(100.0 * byte_count / self.total))

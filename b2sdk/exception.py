@@ -76,7 +76,7 @@ class B2SimpleError(B2Error, metaclass=ABCMeta):
     """
 
     def __str__(self):
-        return '%s: %s' % (self.prefix, super(B2SimpleError, self).__str__())
+        return f'{self.prefix}: {super(B2SimpleError, self).__str__()}'
 
 
 class NotAllowedByAppKeyError(B2SimpleError, metaclass=ABCMeta):
@@ -134,7 +134,7 @@ class ChecksumMismatch(TransientErrorMixin, B2Error):
         self.actual = actual
 
     def __str__(self):
-        return '%s checksum mismatch -- bad data' % (self.checksum_type,)
+        return f'{self.checksum_type} checksum mismatch -- bad data'
 
 
 class B2HttpCallbackException(B2SimpleError):
@@ -211,14 +211,7 @@ class DestFileNewer(B2Error):
         self.source_prefix = source_prefix
 
     def __str__(self):
-        return 'source file is older than destination: %s%s with a time of %s cannot be synced to %s%s with a time of %s, unless a valid newer_file_mode is provided' % (
-            self.source_prefix,
-            self.source_path.relative_path,
-            self.source_path.mod_time,
-            self.dest_prefix,
-            self.dest_path.relative_path,
-            self.dest_path.mod_time,
-        )
+        return f'source file is older than destination: {self.source_prefix}{self.source_path.relative_path} with a time of {self.source_path.mod_time} cannot be synced to {self.dest_prefix}{self.dest_path.relative_path} with a time of {self.dest_path.mod_time}, unless a valid newer_file_mode is provided'
 
     def should_retry_http(self):
         return True
@@ -239,9 +232,12 @@ class FileOrBucketNotFound(ResourceNotFound):
         self.file_id_or_name = file_id_or_name
 
     def __str__(self):
-        file_str = ('file [%s]' % self.file_id_or_name) if self.file_id_or_name else 'a file'
-        bucket_str = ('bucket [%s]' % self.bucket_name) if self.bucket_name else 'a bucket'
-        return 'Could not find %s within %s' % (file_str, bucket_str)
+        file_str = (
+            f'file [{self.file_id_or_name}]' if self.file_id_or_name else 'a file'
+        )
+
+        bucket_str = f'bucket [{self.bucket_name}]' if self.bucket_name else 'a bucket'
+        return f'Could not find {file_str} within {bucket_str}'
 
 
 class BucketIdNotFound(ResourceNotFound):
@@ -249,7 +245,7 @@ class BucketIdNotFound(ResourceNotFound):
         self.bucket_id = bucket_id
 
     def __str__(self):
-        return 'Bucket with id=%s not found' % (self.bucket_id,)
+        return f'Bucket with id={self.bucket_id} not found'
 
 
 class FileAlreadyHidden(B2SimpleError):
@@ -262,7 +258,7 @@ class FileNameNotAllowed(NotAllowedByAppKeyError):
 
 class FileNotPresent(FileOrBucketNotFound):
     def __str__(self):  # overridden to retain message across prev versions
-        return "File not present%s" % (': ' + self.file_id_or_name if self.file_id_or_name else "")
+        return f"""File not present{f': {self.file_id_or_name}' if self.file_id_or_name else ""}"""
 
 
 class UnusableFileName(B2SimpleError):
@@ -309,7 +305,7 @@ class BadRequest(B2Error):
         self.code = code
 
     def __str__(self):
-        return '%s (%s)' % (self.message, self.code)
+        return f'{self.message} ({self.code})'
 
 
 class Unauthorized(B2Error):
@@ -319,7 +315,7 @@ class Unauthorized(B2Error):
         self.code = code
 
     def __str__(self):
-        return '%s (%s)' % (self.message, self.code)
+        return f'{self.message} ({self.code})'
 
     def should_retry_upload(self):
         return True
@@ -333,8 +329,9 @@ class InvalidAuthToken(Unauthorized):
     """
 
     def __init__(self, message, code):
-        super(InvalidAuthToken,
-              self).__init__('Invalid authorization token. Server said: ' + message, code)
+        super(InvalidAuthToken, self).__init__(
+            f'Invalid authorization token. Server said: {message}', code
+        )
 
 
 class RestrictedBucket(B2Error):
@@ -343,7 +340,7 @@ class RestrictedBucket(B2Error):
         self.bucket_name = bucket_name
 
     def __str__(self):
-        return 'Application key is restricted to bucket: %s' % self.bucket_name
+        return f'Application key is restricted to bucket: {self.bucket_name}'
 
 
 class MaxFileSizeExceeded(B2Error):
@@ -353,10 +350,7 @@ class MaxFileSizeExceeded(B2Error):
         self.max_allowed_size = max_allowed_size
 
     def __str__(self):
-        return 'Allowed file size of exceeded: %s > %s' % (
-            self.size,
-            self.max_allowed_size,
-        )
+        return f'Allowed file size of exceeded: {self.size} > {self.max_allowed_size}'
 
 
 class MaxRetriesExceeded(B2Error):
@@ -367,10 +361,7 @@ class MaxRetriesExceeded(B2Error):
 
     def __str__(self):
         exceptions = '\n'.join(str(wrapped_error) for wrapped_error in self.exception_info_list)
-        return 'FAILED to upload after %s tries. Encountered exceptions: %s' % (
-            self.limit,
-            exceptions,
-        )
+        return f'FAILED to upload after {self.limit} tries. Encountered exceptions: {exceptions}'
 
 
 class MissingPart(B2SimpleError):
@@ -379,7 +370,7 @@ class MissingPart(B2SimpleError):
 
 class NonExistentBucket(FileOrBucketNotFound):
     def __str__(self):  # overridden to retain message across prev versions
-        return "No such bucket%s" % (': ' + self.bucket_name if self.bucket_name else "")
+        return f"""No such bucket{f': {self.bucket_name}' if self.bucket_name else ""}"""
 
 
 class FileSha1Mismatch(B2SimpleError):
@@ -392,7 +383,7 @@ class PartSha1Mismatch(B2Error):
         self.key = key
 
     def __str__(self):
-        return 'Part number %s has wrong SHA1' % (self.key,)
+        return f'Part number {self.key} has wrong SHA1'
 
 
 class ServiceError(TransientErrorMixin, B2Error):
@@ -469,7 +460,7 @@ class UploadTokenUsedConcurrently(B2Error):
         self.token = token
 
     def __str__(self):
-        return "More than one concurrent upload using auth token %s" % (self.token,)
+        return f"More than one concurrent upload using auth token {self.token}"
 
 
 class AccessDenied(B2Error):
@@ -494,7 +485,7 @@ class WrongEncryptionModeForBucketDefault(InvalidUserInput):
         self.encryption_mode = encryption_mode
 
     def __str__(self):
-        return "%s cannot be used as default for a bucket." % (self.encryption_mode,)
+        return f"{self.encryption_mode} cannot be used as default for a bucket."
 
 
 class CopyArgumentsMismatch(InvalidUserInput):

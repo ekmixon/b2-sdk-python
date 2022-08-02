@@ -38,11 +38,7 @@ with open('README.md', encoding='utf-8') as f:
 
 
 def read_requirements(extra=None):
-    if extra is not None:
-        file = 'requirements-{}.txt'.format(extra)
-    else:
-        file = 'requirements.txt'
-
+    file = f'requirements-{extra}.txt' if extra is not None else 'requirements.txt'
     with open(file, encoding='utf-8') as f:
         return f.read().splitlines()
 

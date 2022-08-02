@@ -19,11 +19,10 @@ class TestBase(unittest.TestCase):
         try:
             yield
         except exc as e:
-            if msg is not None:
-                if msg != str(e):
-                    assert False, "expected message '%s', but got '%s'" % (msg, str(e))
+            if msg is not None and msg != str(e):
+                assert False, "expected message '%s', but got '%s'" % (msg, str(e))
         else:
-            assert False, 'should have thrown %s' % (exc,)
+            assert False, f'should have thrown {exc}'
 
     @contextmanager
     def assertRaisesRegexp(self, expected_exception, expected_regexp):
@@ -33,4 +32,4 @@ class TestBase(unittest.TestCase):
             if not re.search(expected_regexp, str(e)):
                 assert False, "expected message '%s', but got '%s'" % (expected_regexp, str(e))
         else:
-            assert False, 'should have thrown %s' % (expected_exception,)
+            assert False, f'should have thrown {expected_exception}'

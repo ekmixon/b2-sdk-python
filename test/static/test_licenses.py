@@ -19,6 +19,6 @@ def test_files_headers():
         with open(file) as fd:
             head = ''.join(islice(fd, 9))
             if 'All Rights Reserved' not in head:
-                pytest.fail('Missing "All Rights Reserved" in the header in: {}'.format(file))
+                pytest.fail(f'Missing "All Rights Reserved" in the header in: {file}')
             if file not in head:
-                pytest.fail('Wrong file name in the header in: {}'.format(file))
+                pytest.fail(f'Wrong file name in the header in: {file}')

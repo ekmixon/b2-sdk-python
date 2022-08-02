@@ -55,9 +55,7 @@ class EmergeExecutor(object):
                 continue_large_file_id=continue_large_file_id,
                 max_queue_size=max_queue_size,
             )
-        else:
-            if continue_large_file_id is not None:
-                raise ValueError('Cannot resume emerging single part plan.')
+        elif continue_large_file_id is None:
             execution = SmallFileEmergeExecution(
                 self.services,
                 bucket_id,
@@ -69,6 +67,8 @@ class EmergeExecutor(object):
                 file_retention=file_retention,
                 legal_hold=legal_hold,
             )
+        else:
+            raise ValueError('Cannot resume emerging single part plan.')
         return execution.execute_plan(emerge_plan)
 
 
@@ -224,16 +224,15 @@ class LargeFileEmergeExecution(BaseEmergeExecution):
         semaphore = self._semaphore
         if semaphore is None:
             return execution_step.execute()
+        semaphore.acquire()
+        try:
+            future = execution_step.execute()
+        except:
+            semaphore.release()
+            raise
         else:
-            semaphore.acquire()
-            try:
-                future = execution_step.execute()
-            except:
-                semaphore.release()
-                raise
-            else:
-                future.add_done_callback(lambda f: semaphore.release())
-            return future
+            future.add_done_callback(lambda f: semaphore.release())
+        return future
 
     def _get_unfinished_file_and_parts(
         self,
@@ -313,14 +312,15 @@ class LargeFileEmergeExecution(BaseEmergeExecution):
             if encryption is None or file_.encryption != encryption:
                 continue
 
-            if legal_hold is None:
-                if LegalHold.UNSET != file_.legal_hold:
-                    # Uploading and not providing legal_hold means that server's response about that file version
-                    # will have legal_hold=LegalHold.UNSET
-                    continue
-            elif legal_hold != file_.legal_hold:
+            if (
+                legal_hold is None
+                and LegalHold.UNSET != file_.legal_hold
+                or legal_hold is not None
+                and legal_hold != file_.legal_hold
+            ):
+                # Uploading and not providing legal_hold means that server's response about that file version
+                # will have legal_hold=LegalHold.UNSET
                 continue
-
             if file_retention != file_.file_retention:
                 # if `file_.file_retention` is UNKNOWN then we skip - lib user can still
                 # pass UNKNOWN file_retention here - but raw_api/server won't allow it
@@ -375,14 +375,15 @@ class LargeFileEmergeExecution(BaseEmergeExecution):
             if encryption is not None and encryption != file_.encryption:
                 continue
 
-            if legal_hold is None:
-                if LegalHold.UNSET != file_.legal_hold:
-                    # Uploading and not providing legal_hold means that server's response about that file version
-                    # will have legal_hold=LegalHold.UNSET
-                    continue
-            elif legal_hold != file_.legal_hold:
+            if (
+                legal_hold is None
+                and LegalHold.UNSET != file_.legal_hold
+                or legal_hold is not None
+                and legal_hold != file_.legal_hold
+            ):
+                # Uploading and not providing legal_hold means that server's response about that file version
+                # will have legal_hold=LegalHold.UNSET
                 continue
-
             if file_retention != file_.file_retention:
                 # if `file_.file_retention` is UNKNOWN then we skip - lib user can still
                 # pass UNKNOWN file_retention here - but raw_api/server won't allow it

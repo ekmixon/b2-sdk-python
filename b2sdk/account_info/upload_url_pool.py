@@ -48,11 +48,7 @@ class UploadUrlPool(object):
         :rtype: tuple
         """
         with self._lock:
-            pair_list = self._pool[key]
-            if pair_list:
-                return pair_list.pop()
-            else:
-                return (None, None)
+            return pair_list.pop() if (pair_list := self._pool[key]) else (None, None)
 
     def clear_for_key(self, key):
         """

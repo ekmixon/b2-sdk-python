@@ -445,11 +445,11 @@ class TestListVersions(TestCaseWithBucket):
             b_id, 'e', destination_encryption=SSE_C_AES, file_info={}, content_type='text/plain'
         )
 
-        actual = [info for info in self.bucket.list_file_versions('a')['files']][0]
+        actual = list(self.bucket.list_file_versions('a')['files'])[0]
         actual = EncryptionSettingFactory.from_file_version_dict(actual)
         self.assertEqual(SSE_NONE, actual)  # bucket default
 
-        actual = [info for info in self.bucket.list_file_versions('b')['files']][0]
+        actual = list(self.bucket.list_file_versions('b')['files'])[0]
         actual = EncryptionSettingFactory.from_file_version_dict(actual)
         self.assertEqual(SSE_B2_AES, actual)  # explicitly requested sse-b2
 
@@ -457,11 +457,11 @@ class TestListVersions(TestCaseWithBucket):
         # actual = EncryptionSettingFactory.from_file_version_dict(actual)
         # self.assertEqual(SSE_NONE, actual)  # explicitly requested none
 
-        actual = [info for info in self.bucket.list_file_versions('d')['files']][0]
+        actual = list(self.bucket.list_file_versions('d')['files'])[0]
         actual = EncryptionSettingFactory.from_file_version_dict(actual)
         self.assertEqual(SSE_B2_AES, actual)  # explicitly requested sse-b2
 
-        actual = [info for info in self.bucket.list_file_versions('e')['files']][0]
+        actual = list(self.bucket.list_file_versions('e')['files'])[0]
         actual = EncryptionSettingFactory.from_file_version_dict(actual)
         self.assertEqual(SSE_C_AES_NO_SECRET, actual)  # explicitly requested sse-c
 
@@ -975,34 +975,36 @@ class TestConcatenate(TestCaseWithBucket):
                 write_file(path, data)
                 created_file = self._create_remote(
                     [
-                        CopySource(f1_id, length=len(data), offset=0, encryption=SSE_C_AES),
+                        CopySource(
+                            f1_id, length=len(data), offset=0, encryption=SSE_C_AES
+                        ),
                         UploadSourceLocalFile(path),
-                        CopySource(f2_id, length=len(data), offset=0, encryption=SSE_C_AES_2),
+                        CopySource(
+                            f2_id,
+                            length=len(data),
+                            offset=0,
+                            encryption=SSE_C_AES_2,
+                        ),
                     ],
-                    file_name='created_file_%s' % (len(data),),
-                    encryption=SSE_C_AES
+                    file_name=f'created_file_{len(data)}',
+                    encryption=SSE_C_AES,
                 )
+
             self.assertIsInstance(created_file, FileVersionInfo)
             actual = (
                 created_file.id_, created_file.file_name, created_file.size,
                 created_file.server_side_encryption
             )
-            expected = (
-                mock.ANY,
-                'created_file_%s' % (len(data),),
-                mock.ANY,  # FIXME: this should be equal to len(data) * 3,
-                # but there is a problem in the simulator/test code somewhere
-                SSE_C_AES_NO_SECRET
-            )
+            expected = mock.ANY, f'created_file_{len(data)}', mock.ANY, SSE_C_AES_NO_SECRET
             self.assertEqual(expected, actual)
 
 
 class TestCreateFile(TestConcatenate):
     def _create_remote(self, sources, file_name, encryption=None):
         return self.bucket.create_file(
-            [wi for wi in WriteIntent.wrap_sources_iterator(sources)],
+            list(WriteIntent.wrap_sources_iterator(sources)),
             file_name=file_name,
-            encryption=encryption
+            encryption=encryption,
         )
 
 
@@ -1014,9 +1016,9 @@ class TestConcatenateStream(TestConcatenate):
 class TestCreateFileStream(TestConcatenate):
     def _create_remote(self, sources, file_name, encryption=None):
         return self.bucket.create_file_stream(
-            [wi for wi in WriteIntent.wrap_sources_iterator(sources)],
+            list(WriteIntent.wrap_sources_iterator(sources)),
             file_name=file_name,
-            encryption=encryption
+            encryption=encryption,
         )
 
 

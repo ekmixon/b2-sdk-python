@@ -88,7 +88,10 @@ class TestFolder(TestSync):
         return list(self.prepare_folder().all_files(self.reporter, policies_manager))
 
     def assert_filtered_files(self, scan_results, expected_scan_results):
-        self.assertEqual(expected_scan_results, list(f.relative_path for f in scan_results))
+        self.assertEqual(
+            expected_scan_results, [f.relative_path for f in scan_results]
+        )
+
         self.reporter.local_access_error.assert_not_called()
 
     def test_exclusions(self):
@@ -310,12 +313,18 @@ class TestLocalFolder(TestFolder):
     def test_slash_sorting(self):
         # '/' should sort between '.' and '0'
         folder = self.prepare_folder()
-        self.assertEqual(self.NAMES, list(f.relative_path for f in folder.all_files(self.reporter)))
+        self.assertEqual(
+            self.NAMES, [f.relative_path for f in folder.all_files(self.reporter)]
+        )
+
         self.reporter.local_access_error.assert_not_called()
 
     def test_broken_symlink(self):
         folder = self.prepare_folder(broken_symlink=True)
-        self.assertEqual(self.NAMES, list(f.relative_path for f in folder.all_files(self.reporter)))
+        self.assertEqual(
+            self.NAMES, [f.relative_path for f in folder.all_files(self.reporter)]
+        )
+
         self.reporter.local_access_error.assert_called_once_with(
             os.path.join(self.root_dir, 'bad_symlink')
         )
@@ -328,14 +337,17 @@ class TestLocalFolder(TestFolder):
         # use-case: running test suite inside a docker container
         if not os.access(os.path.join(self.root_dir, self.NAMES[0]), os.R_OK):
             self.assertEqual(
-                self.NAMES[1:], list(f.relative_path for f in folder.all_files(self.reporter))
+                self.NAMES[1:],
+                [f.relative_path for f in folder.all_files(self.reporter)],
             )
+
             self.reporter.local_permission_error.assert_called_once_with(
                 os.path.join(self.root_dir, self.NAMES[0])
             )
         else:
             self.assertEqual(
-                self.NAMES, list(f.relative_path for f in folder.all_files(self.reporter))
+                self.NAMES,
+                [f.relative_path for f in folder.all_files(self.reporter)],
             )
 
     def test_syncable_paths(self):
@@ -597,13 +609,12 @@ class FakeLocalFolder(LocalFolder):
             if single_path.relative_path.endswith('/'):
                 if policies_manager.should_exclude_b2_directory(single_path.relative_path):
                     continue
-            else:
-                if policies_manager.should_exclude_local_path(single_path):
-                    continue
+            elif policies_manager.should_exclude_local_path(single_path):
+                continue
             yield single_path
 
     def make_full_path(self, name):
-        return '/dir/' + name
+        return f'/dir/{name}'
 
 
 class FakeB2Folder(B2Folder):
@@ -632,15 +643,16 @@ class FakeB2Folder(B2Folder):
         return [
             FileVersionInfo(
                 id_='id_%s_%d' % (name[0], abs(mod_time)),
-                file_name='folder/' + name,
+                file_name=f'folder/{name}',
                 upload_timestamp=abs(mod_time),
-                action='upload' if 0 < mod_time else 'hide',
+                action='upload' if mod_time > 0 else 'hide',
                 size=size,
                 file_info={'in_b2': 'yes'},
                 content_type='text/plain',
                 content_sha1='content_sha1',
-            ) for mod_time in mod_times
-        ]  # yapf disable
+            )
+            for mod_time in mod_times
+        ]
 
     @classmethod
     def sync_path_from_file_tuple(cls, name, mod_times, size=10):

@@ -161,15 +161,14 @@ class B2Api(v2.B2Api):
             range_=range_,
             encryption=encryption,
         )
-        if download_dest is not None:
-            try:
-                return download_file_and_return_info_dict(downloaded_file, download_dest, range_)
-            except ValueError as ex:
-                if ex.args == ('no strategy suitable for download was found!',):
-                    raise AssertionError('no strategy suitable for download was found!')
-                raise
-        else:
+        if download_dest is None:
             return downloaded_file
+        try:
+            return download_file_and_return_info_dict(downloaded_file, download_dest, range_)
+        except ValueError as ex:
+            if ex.args == ('no strategy suitable for download was found!',):
+                raise AssertionError('no strategy suitable for download was found!')
+            raise
 
     def list_keys(self, start_application_key_id=None) -> dict:
         """

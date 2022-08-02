@@ -35,10 +35,7 @@ class UploadBuffer(object):
     def __init__(self, start_offset, buff=None):
         self._start_offset = start_offset
         self._buff = buff or []
-        if self._buff:
-            self._end_offset = self._buff[-1][1]
-        else:
-            self._end_offset = self._start_offset
+        self._end_offset = self._buff[-1][1] if self._buff else self._start_offset
 
     @property
     def start_offset(self):
@@ -172,10 +169,13 @@ class EmergePlanner(object):
             # should we flush the upload buffer or do we have to add a chunk of the copy first?
             if current_intent.is_copy() and current_len >= min_part_size:
                 # check if we can flush upload buffer or there is some missing bytes to fill it to `min_part_size`
-                if upload_buffer.intent_count() > 0 and upload_buffer.length < min_part_size:
-                    missing_length = min_part_size - upload_buffer.length
-                else:
-                    missing_length = 0
+                missing_length = (
+                    min_part_size - upload_buffer.length
+                    if upload_buffer.intent_count() > 0
+                    and upload_buffer.length < min_part_size
+                    else 0
+                )
+
                 if missing_length > 0 and current_len - missing_length < min_part_size:
                     # current intent is *not* a "small copy", but upload buffer is small
                     # and current intent is too short with the buffer to reach the minimum part size
@@ -191,35 +191,30 @@ class EmergePlanner(object):
                     # completely flush the upload buffer
                     for upload_buffer_part in self._buff_split(upload_buffer):
                         yield self._get_upload_part(upload_buffer_part)
-                    # split current intent (copy source) to parts and yield
-                    copy_parts = self._get_copy_parts(
+                    yield from self._get_copy_parts(
                         current_intent,
                         start_offset=upload_buffer.end_offset,
                         end_offset=current_end,
                     )
-                    for part in copy_parts:
-                        yield part
+
                     upload_buffer = UploadBuffer(current_end)
+            elif current_intent.is_copy() and first and last:
+                yield from self._get_copy_parts(
+                    current_intent,
+                    start_offset=upload_buffer.end_offset,
+                    end_offset=current_end,
+                )
+
             else:
-                if current_intent.is_copy() and first and last:
-                    # this is a single intent "small copy" - we force use of `copy_file`
-                    copy_parts = self._get_copy_parts(
-                        current_intent,
-                        start_offset=upload_buffer.end_offset,
-                        end_offset=current_end,
-                    )
-                    for part in copy_parts:
-                        yield part
-                else:
-                    # this is a upload source or "small copy" source (that is *not* single intent)
-                    # either way we just add them to upload buffer
-                    upload_buffer.append(current_intent, current_end)
-                    upload_buffer_parts = list(self._buff_split(upload_buffer))
-                    # we flush all parts excluding last one - we may want to extend
-                    # this last part with "incoming" intent in next loop run
-                    for upload_buffer_part in upload_buffer_parts[:-1]:
-                        yield self._get_upload_part(upload_buffer_part)
-                    upload_buffer = upload_buffer_parts[-1]
+                # this is a upload source or "small copy" source (that is *not* single intent)
+                # either way we just add them to upload buffer
+                upload_buffer.append(current_intent, current_end)
+                upload_buffer_parts = list(self._buff_split(upload_buffer))
+                # we flush all parts excluding last one - we may want to extend
+                # this last part with "incoming" intent in next loop run
+                for upload_buffer_part in upload_buffer_parts[:-1]:
+                    yield self._get_upload_part(upload_buffer_part)
+                upload_buffer = upload_buffer_parts[-1]
             current_intent = intent
             first = False
             current_end = fragment_end
@@ -367,9 +362,9 @@ class EmergePlanner(object):
 
             if incoming_offset is not None and last_sent_offset < incoming_offset:
                 raise ValueError(
-                    'Cannot emerge file with holes. '
-                    'Found hole range: ({}, {})'.format(last_sent_offset, incoming_offset)
+                    f'Cannot emerge file with holes. Found hole range: ({last_sent_offset}, {incoming_offset})'
                 )
+
 
             if incoming_intent is None:
                 yield None, None  # lets yield sentinel for cleaner `_get_emerge_parts` implementation
@@ -399,10 +394,7 @@ class EmergePlanner(object):
                 copy_intent, copy_end, copy_protected = copy_intents[0]
 
             if upload_intent is not None and copy_intent is not None:
-                if not copy_protected:
-                    yield_intent = upload_intent
-                else:
-                    yield_intent = copy_intent
+                yield_intent = copy_intent if copy_protected else upload_intent
                 start_offset = min(upload_end, copy_end)
                 yield yield_intent, start_offset
                 if start_offset >= upload_end:
@@ -457,15 +449,10 @@ class IntentsState(object):
 
         It has to called *after* ``IntentsState.state_update`` but it is not verified.
         """
-        if self._next_intent is None:
-            self._set_next_intent(incoming_intent)
-        elif incoming_intent.destination_end_offset > self._next_intent_end:
-            # here either incoming intent starts at the same position as next intent
-            # (and current intent is None in such case - it was just cleared in `state_update`
-            # or it was cleared some time ago - in previous iteratios) or we are in situation
-            # when current and next intent overlaps, and `last_sent_offset` is now set to
-            # incoming intent `destination_offset` - in both cases we want to choose
-            # intent which has larger `destination_end_offset`
+        if (
+            self._next_intent is None
+            or incoming_intent.destination_end_offset > self._next_intent_end
+        ):
             self._set_next_intent(incoming_intent)
 
     def state_update(self, last_sent_offset, incoming_offset):
@@ -478,9 +465,11 @@ class IntentsState(object):
         write intent iterator can be split to multiple substreams (like copy and upload)
         so additional stage is required to cover this.
         """
-        if self._current_intent is not None:
-            if last_sent_offset >= self._current_intent_end:
-                self._set_current_intent(None, None)
+        if (
+            self._current_intent is not None
+            and last_sent_offset >= self._current_intent_end
+        ):
+            self._set_current_intent(None, None)
 
         # `effective_incoming_offset` is a safeguard after intent iterator is drained
         if incoming_offset is not None:
@@ -507,16 +496,7 @@ class IntentsState(object):
             self._current_intent is not None and self._next_intent is not None and
             effective_incoming_offset > self._current_intent_end
         ):
-            # incoming intent does not overlap with current intent
-            # so we switch to next because we are sure that we will have to use it anyway
-            # (of course other overriding (eg. "copy" over "upload") state can have
-            # overlapping intent but we have no information about it here)
-            # but we also need to protect current intent length
-            if not self._is_current_intent_protected():
-                # we were unable to protect current intent, so we can safely rotate
-                self._set_current_intent(self._next_intent, last_sent_offset)
-                self._set_next_intent(None)
-            else:
+            if self._is_current_intent_protected():
                 remaining_len = self.protected_intent_length - (
                     last_sent_offset - self._current_intent_start
                 )
@@ -525,9 +505,9 @@ class IntentsState(object):
                     if not self._can_be_protected(last_sent_offset, self._next_intent_end):
                         last_sent_offset = self._current_intent_end
                     yield self._current_intent, last_sent_offset, True
-                self._set_current_intent(self._next_intent, last_sent_offset)
-                self._set_next_intent(None)
-
+            # we were unable to protect current intent, so we can safely rotate
+            self._set_current_intent(self._next_intent, last_sent_offset)
+            self._set_next_intent(None)
         if self._current_intent is not None:
             yield (
                 self._current_intent,

@@ -22,7 +22,7 @@ def main():
     with tempfile.NamedTemporaryFile() as fp:
         sqlite_db_name = fp.name
         SqliteAccountInfo(sqlite_db_name)
-        engine = create_engine('sqlite:///' + sqlite_db_name)
+        engine = create_engine(f'sqlite:///{sqlite_db_name}')
 
         meta = MetaData()
 

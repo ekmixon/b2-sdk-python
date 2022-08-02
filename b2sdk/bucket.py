@@ -93,10 +93,10 @@ class Bucket(metaclass=B2TraceMeta):
         Fetch all the information about this bucket and return a new bucket object.
         This method does NOT change the object it is called on.
         """
-        buckets_found = self.api.list_buckets(bucket_id=self.id_)
-        if not buckets_found:
+        if buckets_found := self.api.list_buckets(bucket_id=self.id_):
+            return buckets_found[0]
+        else:
             raise BucketIdNotFound(self.id_)
-        return buckets_found[0]
 
     def get_id(self):
         """
@@ -775,11 +775,7 @@ class Bucket(metaclass=B2TraceMeta):
         :param str filename: a file name
         :rtype: str
         """
-        return "%s/file/%s/%s" % (
-            self.api.account_info.get_download_url(),
-            b2_url_encode(self.name),
-            b2_url_encode(filename),
-        )
+        return f"{self.api.account_info.get_download_url()}/file/{b2_url_encode(self.name)}/{b2_url_encode(filename)}"
 
     def hide_file(self, file_name):
         """
@@ -841,23 +837,7 @@ class Bucket(metaclass=B2TraceMeta):
             source_file_info=source_file_info,
             source_content_type=source_content_type,
         )
-        if not length:
-            # TODO: it feels like this should be checked on lower level - eg. RawApi
-            validate_b2_file_name(new_file_name)
-            progress_listener = progress_listener or DoNothingProgressListener()
-            return self.api.services.copy_manager.copy_file(
-                copy_source,
-                new_file_name,
-                content_type=content_type,
-                file_info=file_info,
-                destination_bucket_id=self.id_,
-                progress_listener=progress_listener,
-                destination_encryption=destination_encryption,
-                source_encryption=source_encryption,
-                file_retention=file_retention,
-                legal_hold=legal_hold,
-            ).result()
-        else:
+        if length:
             return self.create_file(
                 [WriteIntent(copy_source)],
                 new_file_name,
@@ -868,6 +848,21 @@ class Bucket(metaclass=B2TraceMeta):
                 file_retention=file_retention,
                 legal_hold=legal_hold,
             )
+        # TODO: it feels like this should be checked on lower level - eg. RawApi
+        validate_b2_file_name(new_file_name)
+        progress_listener = progress_listener or DoNothingProgressListener()
+        return self.api.services.copy_manager.copy_file(
+            copy_source,
+            new_file_name,
+            content_type=content_type,
+            file_info=file_info,
+            destination_bucket_id=self.id_,
+            progress_listener=progress_listener,
+            destination_encryption=destination_encryption,
+            source_encryption=source_encryption,
+            file_retention=file_retention,
+            legal_hold=legal_hold,
+        ).result()
 
     def delete_file_version(self, file_id, file_name):
         """
@@ -906,7 +901,7 @@ class Bucket(metaclass=B2TraceMeta):
         return result
 
     def __repr__(self):
-        return 'Bucket<%s,%s,%s>' % (self.id_, self.name, self.type_)
+        return f'Bucket<{self.id_},{self.name},{self.type_}>'
 
 
 class BucketFactory(object):
@@ -969,7 +964,7 @@ class BucketFactory(object):
         """
         type_ = bucket_dict['bucketType']
         if type_ is None:
-            raise UnrecognizedBucketType(bucket_dict['bucketType'])
+            raise UnrecognizedBucketType(type_)
         bucket_name = bucket_dict['bucketName']
         bucket_id = bucket_dict['bucketId']
         bucket_info = bucket_dict['bucketInfo']

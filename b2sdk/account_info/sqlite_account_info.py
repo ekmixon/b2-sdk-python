@@ -227,17 +227,17 @@ class SqliteAccountInfo(UrlPoolAccountInfo):
         # By default, we run all the upgrades
         last_upgrade_to_run = 4 if last_upgrade_to_run is None else last_upgrade_to_run
         # Add the 'allowed' column if it hasn't been yet.
-        if 1 <= last_upgrade_to_run:
+        if last_upgrade_to_run >= 1:
             self._ensure_update(1, ['ALTER TABLE account ADD COLUMN allowed TEXT;'])
         # Add the 'account_id_or_app_key_id' column if it hasn't been yet
-        if 2 <= last_upgrade_to_run:
+        if last_upgrade_to_run >= 2:
             self._ensure_update(
                 2, ['ALTER TABLE account ADD COLUMN account_id_or_app_key_id TEXT;']
             )
         # Add the 's3_api_url' column if it hasn't been yet
-        if 3 <= last_upgrade_to_run:
+        if last_upgrade_to_run >= 3:
             self._ensure_update(3, ['ALTER TABLE account ADD COLUMN s3_api_url TEXT;'])
-        if 4 <= last_upgrade_to_run:
+        if last_upgrade_to_run >= 4:
             self._ensure_update(
                 4, [
                     """
@@ -462,10 +462,7 @@ class SqliteAccountInfo(UrlPoolAccountInfo):
         :rtype: str
         """
         result = self._get_account_info_or_raise('account_id_or_app_key_id')
-        if result is None:
-            return self.get_account_id()
-        else:
-            return result
+        return self.get_account_id() if result is None else result
 
     def get_api_url(self):
         return self._get_account_info_or_raise('api_url')
@@ -514,17 +511,13 @@ class SqliteAccountInfo(UrlPoolAccountInfo):
 
     def get_s3_api_url(self):
         result = self._get_account_info_or_raise('s3_api_url')
-        if result is None:
-            return ''
-        else:
-            return result
+        return '' if result is None else result
 
     def _get_account_info_or_raise(self, column_name):
         try:
             with self._get_connection() as conn:
-                cursor = conn.execute('SELECT %s FROM account;' % (column_name,))
-                value = cursor.fetchone()[0]
-                return value
+                cursor = conn.execute(f'SELECT {column_name} FROM account;')
+                return cursor.fetchone()[0]
         except Exception as e:
             logger.exception(
                 '_get_account_info_or_raise encountered a problem while trying to retrieve "%s"',

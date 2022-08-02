@@ -44,8 +44,7 @@ class AbstractDownloader(metaclass=B2TraceMetaAbstract):
             return self._forced_chunk_size
         ideal = content_length // 1000
         non_aligned = min(max(ideal, self._min_chunk_size), self._max_chunk_size)
-        aligned = non_aligned // 4096 * 4096
-        return aligned
+        return non_aligned // 4096 * 4096
 
     @classmethod
     def _get_remote_range(cls, response: Response, download_version: DownloadVersion):
@@ -65,9 +64,7 @@ class AbstractDownloader(metaclass=B2TraceMetaAbstract):
         Analyze download_version (possibly against options passed earlier to constructor
         to find out whether the given download request should be handled by this downloader).
         """
-        if self.REQUIRES_SEEKING and not allow_seeking:
-            return False
-        return True
+        return not self.REQUIRES_SEEKING or allow_seeking
 
     @abstractmethod
     def download(

@@ -48,7 +48,7 @@ def install_myself(session, extras=None):
     """Install from the source."""
     arg = '.'
     if extras:
-        arg += '[%s]' % ','.join(extras)
+        arg += f"[{','.join(extras)}]"
 
     session.install('-e', arg)
 
@@ -93,8 +93,9 @@ def lint(session):
     output = subprocess.run('pyflakes b2sdk', shell=True, check=False,
                             stdout=subprocess.PIPE).stdout.decode().strip()
     excludes = ['__init__.py', 'exception.py']
-    output = [l for l in output.splitlines() if all(x not in l for x in excludes)]
-    if output:
+    if output := [
+        l for l in output.splitlines() if all(x not in l for x in excludes)
+    ]:
         print('\n'.join(output))
         session.error('pyflakes has failed')
     # session.run('flake8', *PY_PATHS)
@@ -138,8 +139,8 @@ def cleanup_old_buckets(session):
 def test(session):
     """Run all tests."""
     if session.python:
-        session.notify('unit-{}'.format(session.python))
-        session.notify('integration-{}'.format(session.python))
+        session.notify(f'unit-{session.python}')
+        session.notify(f'integration-{session.python}')
     else:
         session.notify('unit')
         session.notify('integration')

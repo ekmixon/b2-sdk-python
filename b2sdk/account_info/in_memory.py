@@ -83,10 +83,14 @@ class InMemoryAccountInfo(UrlPoolAccountInfo):
         return self._buckets.get(bucket_name)
 
     def get_bucket_name_or_none_from_bucket_id(self, bucket_id: str) -> Optional[str]:
-        for name, cached_id_ in self._buckets.items():
-            if cached_id_ == bucket_id:
-                return name
-        return None
+        return next(
+            (
+                name
+                for name, cached_id_ in self._buckets.items()
+                if cached_id_ == bucket_id
+            ),
+            None,
+        )
 
     def save_bucket(self, bucket):
         self._buckets[bucket.name] = bucket.id_

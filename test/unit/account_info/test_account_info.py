@@ -313,8 +313,9 @@ class TestSqliteAccountInfo(AccountInfoBase):
     @pytest.fixture(autouse=True)
     def setUp(self, request):
         self.db_path = tempfile.NamedTemporaryFile(
-            prefix='tmp_b2_tests_%s__' % (request.node.name,), delete=True
+            prefix=f'tmp_b2_tests_{request.node.name}__', delete=True
         ).name
+
         try:
             os.unlink(self.db_path)
         except OSError:
@@ -373,7 +374,7 @@ class TestSqliteAccountInfo(AccountInfoBase):
         # Override HOME to ensure hermetic tests
         with mock.patch('os.environ', env or {'HOME': self.home}):
             return SqliteAccountInfo(
-                file_name=self.db_path if not env else None,
+                file_name=None if env else self.db_path,
                 last_upgrade_to_run=last_upgrade_to_run,
             )
 

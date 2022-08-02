@@ -63,10 +63,7 @@ class StreamWrapper(io.IOBase):
         :param int size: number of bytes to read
         :return: data read from the stream
         """
-        if size is not None:
-            return self.stream.read(size)
-        else:
-            return self.stream.read()
+        return self.stream.read(size) if size is not None else self.stream.read()
 
     def writable(self):
         return self.stream.writable()

@@ -131,10 +131,7 @@ class StubAccountInfo(AbstractAccountInfo):
     def take_large_file_upload_url(self, file_id):
         with self._large_file_uploads_lock:
             upload_urls = self._large_file_uploads.get(file_id, [])
-            if not upload_urls:
-                return (None, None)
-            else:
-                return upload_urls.pop()
+            return upload_urls.pop() if upload_urls else (None, None)
 
     def clear_large_file_upload_urls(self, file_id):
         with self._large_file_uploads_lock:

@@ -34,12 +34,11 @@ class Synchronizer(SynchronizerV1):
         try:
             super(Synchronizer, self).__init__(*args, **kwargs)
         except InvalidArgument as e:
-            raise CommandError('--%s %s' % (e.parameter_name, e.message))
+            raise CommandError(f'--{e.parameter_name} {e.message}')
 
     def _make_file_sync_actions(self, *args, **kwargs):
         try:
-            for i in super(Synchronizer, self)._make_file_sync_actions(*args, **kwargs):
-                yield i
+            yield from super(Synchronizer, self)._make_file_sync_actions(*args, **kwargs)
         except DestFileNewerV1 as e:
             raise DestFileNewer(e.dest_file, e.source_file, e.dest_prefix, e.source_prefix)
 
@@ -47,7 +46,7 @@ class Synchronizer(SynchronizerV1):
         try:
             super(Synchronizer, self).sync_folders(*args, **kwargs)
         except InvalidArgument as e:
-            raise CommandError('--%s %s' % (e.parameter_name, e.message))
+            raise CommandError(f'--{e.parameter_name} {e.message}')
         except IncompleteSync as e:
             raise CommandError(str(e))
 
@@ -73,12 +72,14 @@ def get_synchronizer_from_args(
 
     if args.compareVersions == 'none':
         compare_version_mode = CompareVersionMode.NONE
-    elif args.compareVersions == 'modTime':
+    elif (
+        args.compareVersions == 'modTime'
+        or args.compareVersions != 'size'
+        and args.compareVersions is None
+    ):
         compare_version_mode = CompareVersionMode.MODTIME
     elif args.compareVersions == 'size':
         compare_version_mode = CompareVersionMode.SIZE
-    elif args.compareVersions is None:
-        compare_version_mode = CompareVersionMode.MODTIME
     else:
         raise CommandError('Invalid option for --compareVersions')
     compare_threshold = args.compareThreshold
@@ -150,7 +151,7 @@ def make_folder_sync_actions(
             encryption_settings_provider=encryption_settings_provider
         )
     except InvalidArgument as e:
-        raise CommandError('--%s %s' % (e.parameter_name, e.message))
+        raise CommandError(f'--{e.parameter_name} {e.message}')
 
 
 @trace_call(logger)

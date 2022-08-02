@@ -54,7 +54,7 @@ class InvalidArgument(B2Error):
         self.message = message
 
     def __str__(self):
-        return "%s %s" % (self.parameter_name, self.message)
+        return f"{self.parameter_name} {self.message}"
 
 
 class IncompleteSync(B2SimpleError):
@@ -76,7 +76,7 @@ class UnSyncableFilename(B2Error):
         self.message = message
 
     def __str__(self):
-        return "%s: %s" % (self.message, self.filename)
+        return f"{self.message}: {self.filename}"
 
 
 @contextmanager

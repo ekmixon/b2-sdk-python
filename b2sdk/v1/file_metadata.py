@@ -51,9 +51,11 @@ class FileMetadata(object):
 
     @classmethod
     def _encode_content_sha1(cls, content_sha1, content_sha1_verified):
-        if not content_sha1_verified:
-            return '%s%s' % (cls.UNVERIFIED_CHECKSUM_PREFIX, content_sha1)
-        return content_sha1
+        return (
+            content_sha1
+            if content_sha1_verified
+            else f'{cls.UNVERIFIED_CHECKSUM_PREFIX}{content_sha1}'
+        )
 
     @classmethod
     def from_download_version(cls, download_version: v2.DownloadVersion):

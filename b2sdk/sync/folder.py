@@ -91,10 +91,7 @@ def join_b2_path(relative_dir_path: str, file_name: str):
     """
     Like os.path.join, but for B2 file names where the root directory is called ''.
     """
-    if relative_dir_path == '':
-        return file_name
-    else:
-        return relative_dir_path + '/' + file_name
+    return f'{relative_dir_path}/{file_name}' if relative_dir_path else file_name
 
 
 class LocalFolder(AbstractFolder):
@@ -110,7 +107,7 @@ class LocalFolder(AbstractFolder):
         :type root: str
         """
         if not isinstance(root, str):
-            raise ValueError('folder path should be unicode: %s' % repr(root))
+            raise ValueError(f'folder path should be unicode: {repr(root)}')
         self.root = fix_windows_path_limit(os.path.abspath(root))
 
     def folder_type(self):
@@ -184,7 +181,7 @@ class LocalFolder(AbstractFolder):
         :param relative_dir_path: the path of this dir relative to the sync point, or '' if at sync point
         """
         if not isinstance(local_dir, str):
-            raise ValueError('folder path should be unicode: %s' % repr(local_dir))
+            raise ValueError(f'folder path should be unicode: {repr(local_dir)}')
 
         # Collect the names.  We do this before returning any results, because
         # directories need to sort as if their names end in '/'.
@@ -210,8 +207,9 @@ class LocalFolder(AbstractFolder):
             if '/' in name:
                 raise UnSyncableFilename(
                     "sync does not support file names that include '/'",
-                    "%s in dir %s" % (name, local_dir)
+                    f"{name} in dir {local_dir}",
                 )
+
 
             local_path = os.path.join(local_dir, name)
             relative_file_path = join_b2_path(
@@ -240,27 +238,22 @@ class LocalFolder(AbstractFolder):
         # the sort key, is the first thing in the triple.
         for (name, local_path, relative_file_path) in sorted(names):
             if name.endswith('/'):
-                for subdir_file in self._walk_relative_paths(
+                yield from self._walk_relative_paths(
                     local_path, relative_file_path, reporter, policies_manager
-                ):
-                    yield subdir_file
-            else:
-                # Check that the file still exists and is accessible, since it can take a long time
-                # to iterate through large folders
-                if is_file_readable(local_path, reporter):
-                    file_mod_time = get_file_mtime(local_path)
-                    file_size = os.path.getsize(local_path)
+                )
 
-                    local_sync_path = LocalSyncPath(
-                        absolute_path=self.make_full_path(relative_file_path),
-                        relative_path=relative_file_path,
-                        mod_time=file_mod_time,
-                        size=file_size,
-                    )
+            elif is_file_readable(local_path, reporter):
+                file_mod_time = get_file_mtime(local_path)
+                file_size = os.path.getsize(local_path)
 
-                    if policies_manager.should_exclude_local_path(local_sync_path):
-                        continue
+                local_sync_path = LocalSyncPath(
+                    absolute_path=self.make_full_path(relative_file_path),
+                    relative_path=relative_file_path,
+                    mod_time=file_mod_time,
+                    size=file_size,
+                )
 
+                if not policies_manager.should_exclude_local_path(local_sync_path):
                     yield local_sync_path
 
     @classmethod
@@ -278,7 +271,7 @@ class LocalFolder(AbstractFolder):
         raise EnvironmentEncodingError(repr(name), sys.getfilesystemencoding())
 
     def __repr__(self):
-        return 'LocalFolder(%s)' % (self.root,)
+        return f'LocalFolder({self.root})'
 
 
 def b2_parent_dir(file_name):
@@ -309,7 +302,7 @@ class B2Folder(AbstractFolder):
         self.folder_name = folder_name
         self.bucket = api.get_bucket_by_name(bucket_name)
         self.api = api
-        self.prefix = '' if self.folder_name == '' else self.folder_name + '/'
+        self.prefix = '' if self.folder_name == '' else f'{self.folder_name}/'
 
     def all_files(
         self, reporter: SyncReport, policies_manager: ScanPoliciesManager = DEFAULT_SCAN_MANAGER
@@ -335,7 +328,7 @@ class B2Folder(AbstractFolder):
             dir_name = b2_parent_dir(file_name)
 
             if policies_manager.should_exclude_b2_directory(dir_name):
-                last_ignored_dir = dir_name + '/'
+                last_ignored_dir = f'{dir_name}/'
                 continue
             else:
                 last_ignored_dir = None
@@ -406,7 +399,7 @@ class B2Folder(AbstractFolder):
         if self.folder_name == '':
             return file_name
         else:
-            return self.folder_name + '/' + file_name
+            return f'{self.folder_name}/{file_name}'
 
     def __str__(self):
-        return 'B2Folder(%s, %s)' % (self.bucket_name, self.folder_name)
+        return f'B2Folder({self.bucket_name}, {self.folder_name})'

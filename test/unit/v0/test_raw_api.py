@@ -76,15 +76,15 @@ class TestRawAPIFilenames(TestBase):
         s_1024 = 4 * (250 * 'x' + '/') + 20 * 'y'
         self._should_be_ok(s_1024)
         # 1025 is too long.
-        self._should_raise(s_1024 + u'x', "too long")
+        self._should_raise(f'{s_1024}x', "too long")
         # 1024 bytes with two byte characters should also work.
         s_1024_two_byte = 4 * (125 * TWO_BYTE_UNICHR + u'/') + 20 * u'y'
         self._should_be_ok(s_1024_two_byte)
         # But 1025 bytes is too long.
-        self._should_raise(s_1024_two_byte + u'x', "too long")
+        self._should_raise(f'{s_1024_two_byte}x', "too long")
 
         # Names with unicode values < 32, and DEL aren't allowed.
-        self._should_raise(u'hey' + CHAR_UNDER_32, "contains code.*less than 32")
+        self._should_raise(f'hey{CHAR_UNDER_32}', "contains code.*less than 32")
         # Unicode in the filename shouldn't break the exception message.
         self._should_raise(TWO_BYTE_UNICHR + CHAR_UNDER_32, "contains code.*less than 32")
         self._should_raise(DEL_CHAR, "DEL.*not allowed")

@@ -74,10 +74,14 @@ class InMemoryCache(AbstractCache):
         return self.name_id_map.get(name)
 
     def get_bucket_name_or_none_from_bucket_id(self, bucket_id: str) -> Optional[str]:
-        for name, cached_id_ in self.name_id_map.items():
-            if cached_id_ == bucket_id:
-                return name
-        return None
+        return next(
+            (
+                name
+                for name, cached_id_ in self.name_id_map.items()
+                if cached_id_ == bucket_id
+            ),
+            None,
+        )
 
     def get_bucket_name_or_none_from_allowed(self):
         return self.bucket_name

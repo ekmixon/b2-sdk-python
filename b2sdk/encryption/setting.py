@@ -50,15 +50,9 @@ class EncryptionKey:
         return self.secret == other.secret and self.key_id == other.key_id
 
     def __repr__(self):
-        key_repr = self.SECRET_REPR
-        if self.secret is None:
-            key_repr = None
-
-        if self.key_id is UNKNOWN_KEY_ID:
-            key_id_repr = 'unknown'
-        else:
-            key_id_repr = repr(self.key_id)
-        return '<%s(%s, %s)>' % (self.__class__.__name__, key_repr, key_id_repr)
+        key_repr = None if self.secret is None else self.SECRET_REPR
+        key_id_repr = 'unknown' if self.key_id is UNKNOWN_KEY_ID else repr(self.key_id)
+        return f'<{self.__class__.__name__}({key_repr}, {key_id_repr})>'
 
     def as_dict(self):
         """
@@ -104,11 +98,10 @@ class EncryptionSetting:
         if self.mode == EncryptionMode.NONE and (self.algorithm or self.key):
             raise ValueError("cannot specify algorithm or key for 'plaintext' encryption mode")
         if self.mode in ENCRYPTION_MODES_WITH_MANDATORY_ALGORITHM and not self.algorithm:
-            raise ValueError('must specify algorithm for encryption mode %s' % (self.mode,))
+            raise ValueError(f'must specify algorithm for encryption mode {self.mode}')
         if self.mode in ENCRYPTION_MODES_WITH_MANDATORY_KEY and not self.key:
             raise ValueError(
-                'must specify key for encryption mode %s and algorithm %s' %
-                (self.mode, self.algorithm)
+                f'must specify key for encryption mode {self.mode} and algorithm {self.algorithm}'
             )
 
     def __eq__(self, other):
@@ -153,7 +146,7 @@ class EncryptionSetting:
         if self.algorithm is not None:
             result['algorithm'] = self.algorithm.value
         if self.mode == EncryptionMode.SSE_C:
-            result.update(self.key.as_dict())
+            result |= self.key.as_dict()
         return result
 
     def add_to_upload_headers(self, headers):
@@ -175,7 +168,7 @@ class EncryptionSetting:
                     )
                 headers[header] = urllib.parse.quote(str(self.key.key_id))
         else:
-            raise NotImplementedError('unsupported encryption setting: %s' % (self,))
+            raise NotImplementedError(f'unsupported encryption setting: {self}')
 
     def add_to_download_headers(self, headers):
         if self.mode == EncryptionMode.NONE:
@@ -185,7 +178,7 @@ class EncryptionSetting:
         elif self.mode == EncryptionMode.SSE_C:
             self._add_sse_c_headers(headers)
         else:
-            raise NotImplementedError('unsupported encryption setting: %s' % (self,))
+            raise NotImplementedError(f'unsupported encryption setting: {self}')
 
     def _add_sse_b2_headers(self, headers):
         headers['X-Bz-Server-Side-Encryption'] = self.algorithm.name
@@ -216,7 +209,7 @@ class EncryptionSetting:
         return file_info
 
     def __repr__(self):
-        return '<%s(%s, %s, %s)>' % (self.__class__.__name__, self.mode, self.algorithm, self.key)
+        return f'<{self.__class__.__name__}({self.mode}, {self.algorithm}, {self.key})>'
 
 
 class EncryptionSettingFactory:

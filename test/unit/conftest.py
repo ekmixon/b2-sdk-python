@@ -50,7 +50,7 @@ def pytest_configure(config):
 @pytest.hookimpl
 def pytest_report_header(config):
     """Print apiver in the header."""
-    return 'b2sdk apiver: %s' % config.getoption('--api')
+    return f"b2sdk apiver: {config.getoption('--api')}"
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -59,10 +59,7 @@ def pytest_ignore_collect(path, config):
     path = str(path)
     ver = config.getoption('--api')
     other_versions = [v for v in API_VERSIONS if v != ver]
-    for other_version in other_versions:
-        if other_version + os.sep in path:
-            return True
-    return False
+    return any(other_version + os.sep in path for other_version in other_versions)
 
 
 def pytest_runtest_setup(item):
@@ -132,7 +129,7 @@ def pytest_runtest_setup(item):
         int_ver = int(item.config.getoption('--api')[1:])
         if mark.args:
             if int_ver not in mark.args:
-                pytest.skip('test requires apiver to be one of: %s' % mark.args)
+                pytest.skip(f'test requires apiver to be one of: {mark.args}')
         elif mark.kwargs:
             from_ver = mark.kwargs.get('from_ver', 0)
             to_ver = mark.kwargs.get('to_ver', sys.maxsize)

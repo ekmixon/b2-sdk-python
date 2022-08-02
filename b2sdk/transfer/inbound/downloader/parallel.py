@@ -59,11 +59,12 @@ class ParallelDownloader(AbstractDownloader):
         super(ParallelDownloader, self).__init__(*args, **kwargs)
 
     def is_suitable(self, download_version: DownloadVersion, allow_seeking: bool):
-        if not super().is_suitable(download_version, allow_seeking):
-            return False
-        return self._get_number_of_streams(
-            download_version.content_length
-        ) >= 2 and download_version.content_length >= 2 * self.min_part_size
+        return (
+            self._get_number_of_streams(download_version.content_length) >= 2
+            and download_version.content_length >= 2 * self.min_part_size
+            if super().is_suitable(download_version, allow_seeking)
+            else False
+        )
 
     def _get_number_of_streams(self, content_length):
         return min(self.max_streams, content_length // self.min_part_size) or 1
@@ -346,7 +347,7 @@ class PartToDownload(object):
         self.local_range = local_range
 
     def __repr__(self):
-        return 'PartToDownload(%s, %s)' % (self.cloud_range, self.local_range)
+        return f'PartToDownload({self.cloud_range}, {self.local_range})'
 
 
 def gen_parts(cloud_range, local_range, part_count):

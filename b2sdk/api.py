@@ -45,7 +45,7 @@ def url_for_api(info, api_name):
         base = info.get_download_url()
     else:
         base = info.get_api_url()
-    return '%s/b2api/%s/%s' % (base, API_VERSION, api_name)
+    return f'{base}/b2api/{API_VERSION}/{api_name}'
 
 
 class Services(object):
@@ -405,7 +405,7 @@ class B2Api(metaclass=B2TraceMeta):
         :param str file_id: a file ID
         """
         url = url_for_api(self.account_info, 'b2_download_file_by_id')
-        return '%s?fileId=%s' % (url, file_id)
+        return f'{url}?fileId={file_id}'
 
     def get_download_url_for_file_name(self, bucket_name, file_name):
         """
@@ -415,9 +415,7 @@ class B2Api(metaclass=B2TraceMeta):
         :param str file_name: a file name
         """
         self.check_bucket_name_restrictions(bucket_name)
-        return '%s/file/%s/%s' % (
-            self.account_info.get_download_url(), bucket_name, b2_url_encode(file_name)
-        )
+        return f'{self.account_info.get_download_url()}/file/{bucket_name}/{b2_url_encode(file_name)}'
 
     # keys
     def create_key(
@@ -532,6 +530,8 @@ class B2Api(metaclass=B2TraceMeta):
         allowed = self.account_info.get_allowed()
         allowed_bucket_identifier = allowed[key]
 
-        if allowed_bucket_identifier is not None:
-            if allowed_bucket_identifier != value:
-                raise RestrictedBucket(allowed_bucket_identifier)
+        if (
+            allowed_bucket_identifier is not None
+            and allowed_bucket_identifier != value
+        ):
+            raise RestrictedBucket(allowed_bucket_identifier)

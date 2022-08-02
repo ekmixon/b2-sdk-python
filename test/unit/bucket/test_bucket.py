@@ -1271,34 +1271,36 @@ class TestConcatenate(TestCaseWithBucket):
                 write_file(path, data)
                 created_file = self._create_remote(
                     [
-                        CopySource(f1_id, length=len(data), offset=0, encryption=SSE_C_AES),
+                        CopySource(
+                            f1_id, length=len(data), offset=0, encryption=SSE_C_AES
+                        ),
                         UploadSourceLocalFile(path),
-                        CopySource(f2_id, length=len(data), offset=0, encryption=SSE_C_AES_2),
+                        CopySource(
+                            f2_id,
+                            length=len(data),
+                            offset=0,
+                            encryption=SSE_C_AES_2,
+                        ),
                     ],
-                    file_name='created_file_%s' % (len(data),),
-                    encryption=SSE_C_AES
+                    file_name=f'created_file_{len(data)}',
+                    encryption=SSE_C_AES,
                 )
+
             self.assertIsInstance(created_file, VFileVersionInfo)
             actual = (
                 created_file.id_, created_file.file_name, created_file.size,
                 created_file.server_side_encryption
             )
-            expected = (
-                mock.ANY,
-                'created_file_%s' % (len(data),),
-                mock.ANY,  # FIXME: this should be equal to len(data) * 3,
-                # but there is a problem in the simulator/test code somewhere
-                SSE_C_AES_NO_SECRET
-            )
+            expected = mock.ANY, f'created_file_{len(data)}', mock.ANY, SSE_C_AES_NO_SECRET
             self.assertEqual(expected, actual)
 
 
 class TestCreateFile(TestConcatenate):
     def _create_remote(self, sources, file_name, encryption=None):
         return self.bucket.create_file(
-            [wi for wi in WriteIntent.wrap_sources_iterator(sources)],
+            list(WriteIntent.wrap_sources_iterator(sources)),
             file_name=file_name,
-            encryption=encryption
+            encryption=encryption,
         )
 
 
@@ -1310,9 +1312,9 @@ class TestConcatenateStream(TestConcatenate):
 class TestCreateFileStream(TestConcatenate):
     def _create_remote(self, sources, file_name, encryption=None):
         return self.bucket.create_file_stream(
-            [wi for wi in WriteIntent.wrap_sources_iterator(sources)],
+            list(WriteIntent.wrap_sources_iterator(sources)),
             file_name=file_name,
-            encryption=encryption
+            encryption=encryption,
         )
 
 
@@ -1326,10 +1328,7 @@ class DownloadTestsBase(object):
             self.DATA.encode(), 'enc_file1', encryption=SSE_C_AES
         )
         self.bytes_io = io.BytesIO()
-        if apiver_deps.V <= 1:
-            self.download_dest = DownloadDestBytes()
-        else:
-            self.download_dest = None
+        self.download_dest = DownloadDestBytes() if apiver_deps.V <= 1 else None
         self.progress_listener = StubProgressListener()
 
     def _verify(self, expected_result, check_progress_listener=True):
@@ -1369,10 +1368,7 @@ class TestDownloadException(DownloadTestsBase, TestCaseWithBucket):
     DATA = 'some data'
 
     def test_download_file_by_name(self):
-        if apiver_deps.V <= 1:
-            exception_class = AssertionError
-        else:
-            exception_class = ValueError
+        exception_class = AssertionError if apiver_deps.V <= 1 else ValueError
         with mock.patch.object(self.bucket.api.services.download_manager, 'strategies', new=[]):
             with pytest.raises(exception_class) as exc_info:
                 self.download_file_by_name(self.file_version.file_name)
@@ -1416,18 +1412,18 @@ class DownloadTests(DownloadTestsBase):
         }
         ret = self.bucket.download_file_by_id(file_version.id_, **download_kwargs)
         assert isinstance(ret, DownloadedFile), type(ret)
-        for attr_name, expected_value in {**download_kwargs, **other_properties}.items():
+        for attr_name, expected_value in (download_kwargs | other_properties).items():
             assert getattr(ret, attr_name) == expected_value, attr_name
 
         if apiver_deps.V >= 2:
             ret = self.bucket.download_file_by_name(file_version.file_name, **download_kwargs)
             assert isinstance(ret, DownloadedFile), type(ret)
-            for attr_name, expected_value in {**download_kwargs, **other_properties}.items():
+            for attr_name, expected_value in (download_kwargs | other_properties).items():
                 assert getattr(ret, attr_name) == expected_value, attr_name
 
         ret = file_version.download(**download_kwargs)
         assert isinstance(ret, DownloadedFile), type(ret)
-        for attr_name, expected_value in {**download_kwargs, **other_properties}.items():
+        for attr_name, expected_value in (download_kwargs | other_properties).items():
             assert getattr(ret, attr_name) == expected_value, attr_name
 
     @pytest.mark.apiver(to_ver=1)

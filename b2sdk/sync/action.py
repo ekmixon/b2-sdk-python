@@ -50,7 +50,7 @@ class AbstractAction(metaclass=ABCMeta):
             self.do_report(bucket, reporter)
         except Exception as e:
             logger.exception('an exception occurred in a sync action')
-            reporter.error(str(self) + ": " + repr(e) + ' ' + str(e))
+            reporter.error(f"{str(self)}: {repr(e)} {str(e)}")
             raise  # Re-throw so we can identify failed actions
 
     @abstractmethod
@@ -126,10 +126,7 @@ class B2UploadAction(AbstractAction):
         :param b2sdk.v2.Bucket bucket: a Bucket object
         :param reporter: a place to report errors
         """
-        if reporter:
-            progress_listener = SyncFileReporter(reporter)
-        else:
-            progress_listener = None
+        progress_listener = SyncFileReporter(reporter) if reporter else None
         file_info = {SRC_LAST_MODIFIED_MILLIS: str(self.mod_time_millis)}
         encryption = self.encryption_settings_provider.get_setting_for_upload(
             bucket=bucket,
@@ -153,12 +150,10 @@ class B2UploadAction(AbstractAction):
         :type bucket: b2sdk.bucket.Bucket
         :param reporter: a place to report errors
         """
-        reporter.print_completion('upload ' + self.relative_name)
+        reporter.print_completion(f'upload {self.relative_name}')
 
     def __str__(self):
-        return 'b2_upload(%s, %s, %s)' % (
-            self.local_full_path, self.b2_file_name, self.mod_time_millis
-        )
+        return f'b2_upload({self.local_full_path}, {self.b2_file_name}, {self.mod_time_millis})'
 
 
 class B2HideAction(AbstractAction):
@@ -200,10 +195,10 @@ class B2HideAction(AbstractAction):
         :param reporter: a place to report errors
         """
         reporter.update_transfer(1, 0)
-        reporter.print_completion('hide   ' + self.relative_name)
+        reporter.print_completion(f'hide   {self.relative_name}')
 
     def __str__(self):
-        return 'b2_hide(%s)' % (self.b2_file_name,)
+        return f'b2_hide({self.b2_file_name})'
 
 
 class B2DownloadAction(AbstractAction):
@@ -241,7 +236,7 @@ class B2DownloadAction(AbstractAction):
             except OSError:
                 pass
         if not os.path.isdir(parent_dir):
-            raise Exception('could not create directory %s' % (parent_dir,))
+            raise Exception(f'could not create directory {parent_dir}')
 
     def do_action(self, bucket, reporter):
         """
@@ -252,13 +247,9 @@ class B2DownloadAction(AbstractAction):
         """
         self._ensure_directory_existence()
 
-        if reporter:
-            progress_listener = SyncFileReporter(reporter)
-        else:
-            progress_listener = None
-
+        progress_listener = SyncFileReporter(reporter) if reporter else None
         # Download the file to a .tmp file
-        download_path = self.local_full_path + '.b2.sync.tmp'
+        download_path = f'{self.local_full_path}.b2.sync.tmp'
 
         encryption = self.encryption_settings_provider.get_setting_for_download(
             bucket=bucket,
@@ -287,7 +278,7 @@ class B2DownloadAction(AbstractAction):
         :type bucket: b2sdk.bucket.Bucket
         :param reporter: a place to report errors
         """
-        reporter.print_completion('dnload ' + self.source_path.relative_path)
+        reporter.print_completion(f'dnload {self.source_path.relative_path}')
 
     def __str__(self):
         return (
@@ -343,11 +334,7 @@ class B2CopyAction(AbstractAction):
         :type bucket: b2sdk.bucket.Bucket
         :param reporter: a place to report errors
         """
-        if reporter:
-            progress_listener = SyncFileReporter(reporter)
-        else:
-            progress_listener = None
-
+        progress_listener = SyncFileReporter(reporter) if reporter else None
         source_encryption = self.encryption_settings_provider.get_source_setting_for_copy(
             bucket=self.source_bucket,
             source_file_version=self.source_path.selected_version,
@@ -378,7 +365,7 @@ class B2CopyAction(AbstractAction):
         :type bucket: b2sdk.bucket.Bucket
         :param reporter: a place to report errors
         """
-        reporter.print_completion('copy ' + self.source_path.relative_path)
+        reporter.print_completion(f'copy {self.source_path.relative_path}')
 
     def __str__(self):
         return (
@@ -430,10 +417,10 @@ class B2DeleteAction(AbstractAction):
         :param reporter: a place to report errors
         """
         reporter.update_transfer(1, 0)
-        reporter.print_completion('delete ' + self.relative_name + ' ' + self.note)
+        reporter.print_completion(f'delete {self.relative_name} {self.note}')
 
     def __str__(self):
-        return 'b2_delete(%s, %s, %s)' % (self.b2_file_name, self.file_id, self.note)
+        return f'b2_delete({self.b2_file_name}, {self.file_id}, {self.note})'
 
 
 class LocalDeleteAction(AbstractAction):
@@ -476,7 +463,7 @@ class LocalDeleteAction(AbstractAction):
         :param reporter: a place to report errors
         """
         reporter.update_transfer(1, 0)
-        reporter.print_completion('delete ' + self.relative_name)
+        reporter.print_completion(f'delete {self.relative_name}')
 
     def __str__(self):
-        return 'local_delete(%s)' % (self.full_path)
+        return f'local_delete({self.full_path})'

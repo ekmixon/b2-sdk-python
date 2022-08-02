@@ -64,7 +64,7 @@ class RetentionPeriod:
         }
 
     def __repr__(self):
-        return '%s(%s %s)' % (self.__class__.__name__, self.duration, self.unit)
+        return f'{self.__class__.__name__}({self.duration} {self.unit})'
 
     def __eq__(self, other):
         return self.unit == other.unit and self.duration == other.duration
@@ -75,7 +75,7 @@ class FileRetentionSetting:
 
     def __init__(self, mode: RetentionMode, retain_until: Optional[int] = None):
         if mode in RETENTION_MODES_REQUIRING_PERIODS and retain_until is None:
-            raise ValueError('must specify retain_until for retention mode %s' % (mode,))
+            raise ValueError(f'must specify retain_until for retention mode {mode}')
         self.mode = mode
         self.retain_until = retain_until
 
@@ -110,16 +110,17 @@ class FileRetentionSetting:
         if 'fileRetention' not in file_version_dict:
             if file_version_dict['action'] not in ACTIONS_WITHOUT_LOCK_SETTINGS:
                 raise UnexpectedCloudBehaviour(
-                    'No fileRetention provided for file version with action=%s' %
-                    (file_version_dict['action'])
+                    f"No fileRetention provided for file version with action={file_version_dict['action']}"
                 )
+
             return NO_RETENTION_FILE_SETTING
         file_retention_dict = file_version_dict['fileRetention']
 
-        if not file_retention_dict['isClientAuthorizedToRead']:
-            return cls(RetentionMode.UNKNOWN, None)
-
-        return cls.from_file_retention_value_dict(file_retention_dict['value'])
+        return (
+            cls.from_file_retention_value_dict(file_retention_dict['value'])
+            if file_retention_dict['isClientAuthorizedToRead']
+            else cls(RetentionMode.UNKNOWN, None)
+        )
 
     @classmethod
     def from_file_retention_value_dict(
@@ -142,8 +143,8 @@ class FileRetentionSetting:
     @classmethod
     def from_response_headers(cls, headers) -> 'FileRetentionSetting':
         retention_mode_header = 'X-Bz-File-Retention-Mode'
-        retain_until_header = 'X-Bz-File-Retention-Retain-Until-Timestamp'
         if retention_mode_header in headers:
+            retain_until_header = 'X-Bz-File-Retention-Retain-Until-Timestamp'
             if retain_until_header in headers:
                 retain_until = int(headers[retain_until_header])
             else:
@@ -179,9 +180,7 @@ class FileRetentionSetting:
         return self.mode == other.mode and self.retain_until == other.retain_until
 
     def __repr__(self):
-        return '%s(%s, %s)' % (
-            self.__class__.__name__, repr(self.mode.value), repr(self.retain_until)
-        )
+        return f'{self.__class__.__name__}({repr(self.mode.value)}, {repr(self.retain_until)})'
 
 
 @enum.unique
@@ -210,13 +209,15 @@ class LegalHold(enum.Enum):
         if 'legalHold' not in file_version_dict:
             if file_version_dict['action'] not in ACTIONS_WITHOUT_LOCK_SETTINGS:
                 raise UnexpectedCloudBehaviour(
-                    'legalHold not provided for file version with action=%s' %
-                    (file_version_dict['action'])
+                    f"legalHold not provided for file version with action={file_version_dict['action']}"
                 )
+
             return cls.UNSET
-        if not file_version_dict['legalHold']['isClientAuthorizedToRead']:
-            return cls.UNKNOWN
-        return cls.from_string_or_none(file_version_dict['legalHold']['value'])
+        return (
+            cls.from_string_or_none(file_version_dict['legalHold']['value'])
+            if file_version_dict['legalHold']['isClientAuthorizedToRead']
+            else cls.UNKNOWN
+        )
 
     @classmethod
     def from_server_response(cls, server_response: dict) -> 'LegalHold':
@@ -239,9 +240,7 @@ class LegalHold(enum.Enum):
     def to_server(self) -> str:
         if self.is_unknown():
             raise ValueError('Cannot use an unknown legal hold in requests')
-        if self.is_on():
-            return self.__class__.ON.value
-        return self.__class__.OFF.value
+        return self.__class__.ON.value if self.is_on() else self.__class__.OFF.value
 
     def add_to_upload_headers(self, headers):
         headers['X-Bz-File-Legal-Hold'] = self.to_server()
@@ -253,7 +252,7 @@ class BucketRetentionSetting:
 
     def __init__(self, mode: RetentionMode, period: Optional[RetentionPeriod] = None):
         if mode in RETENTION_MODES_REQUIRING_PERIODS and period is None:
-            raise ValueError('must specify period for retention mode %s' % (mode,))
+            raise ValueError(f'must specify period for retention mode {mode}')
         self.mode = mode
         self.period = period
 
@@ -295,7 +294,7 @@ class BucketRetentionSetting:
         return self.mode == other.mode and self.period == other.period
 
     def __repr__(self):
-        return '%s(%s, %s)' % (self.__class__.__name__, repr(self.mode.value), repr(self.period))
+        return f'{self.__class__.__name__}({repr(self.mode.value)}, {repr(self.period)})'
 
 
 class FileLockConfiguration:
@@ -357,9 +356,7 @@ class FileLockConfiguration:
         return self.default_retention == other.default_retention and self.is_file_lock_enabled == other.is_file_lock_enabled
 
     def __repr__(self):
-        return '%s(%s, %s)' % (
-            self.__class__.__name__, repr(self.default_retention), repr(self.is_file_lock_enabled)
-        )
+        return f'{self.__class__.__name__}({repr(self.default_retention)}, {repr(self.is_file_lock_enabled)})'
 
 
 UNKNOWN_BUCKET_RETENTION = BucketRetentionSetting(RetentionMode.UNKNOWN)

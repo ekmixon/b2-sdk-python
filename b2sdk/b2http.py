@@ -35,12 +35,12 @@ def _print_exception(e, indent=''):
 
     :param str indent: message prefix
     """
-    print(indent + 'EXCEPTION', repr(e))
-    print(indent + 'CLASS', type(e))
+    print(f'{indent}EXCEPTION', repr(e))
+    print(f'{indent}CLASS', type(e))
     for (i, a) in enumerate(e.args):
         print(indent + 'ARG %d: %s' % (i, repr(a)))
         if isinstance(a, Exception):
-            _print_exception(a, indent + '        ')
+            _print_exception(a, f'{indent}        ')
 
 
 class ResponseContextManager(object):
@@ -321,9 +321,7 @@ class B2Http(object):
 
     @classmethod
     def _get_user_agent(cls, user_agent_append):
-        if user_agent_append:
-            return '%s %s' % (USER_AGENT, user_agent_append)
-        return USER_AGENT
+        return f'{USER_AGENT} {user_agent_append}' if user_agent_append else USER_AGENT
 
     def _run_pre_request_hooks(self, method, url, headers):
         for callback in self.callbacks:
@@ -369,12 +367,15 @@ class B2Http(object):
                     raise UnknownHost()
             elif isinstance(e1, requests.packages.urllib3.exceptions.ProtocolError):
                 e2 = e1.args[1]
-                if isinstance(e2, socket.error):
-                    if len(e2.args) >= 2 and e2.args[1] == 'Broken pipe':
-                        # Broken pipes are usually caused by the service rejecting
-                        # an upload request for cause, so we use a 400 Bad Request
-                        # code.
-                        raise BrokenPipe()
+                if (
+                    isinstance(e2, socket.error)
+                    and len(e2.args) >= 2
+                    and e2.args[1] == 'Broken pipe'
+                ):
+                    # Broken pipes are usually caused by the service rejecting
+                    # an upload request for cause, so we use a 400 Bad Request
+                    # code.
+                    raise BrokenPipe()
             raise B2ConnectionError(str(e0))
 
         except requests.Timeout as e:
@@ -390,9 +391,8 @@ class B2Http(object):
             # catch it explicitly.
             #
             # The text from one such error looks like this: SysCallError(104, 'ECONNRESET')
-            if text.startswith('SysCallError'):
-                if 'ECONNRESET' in text:
-                    raise ConnectionReset()
+            if text.startswith('SysCallError') and 'ECONNRESET' in text:
+                raise ConnectionReset()
 
             logger.exception('_translate_errors has intercepted an unexpected exception')
             raise UnknownError(text)

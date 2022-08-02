@@ -105,16 +105,13 @@ class BaseFileVersion(ABC):
 
     def __eq__(self, other):
         sentry = object()
-        for attr in self._all_slots():
-            if getattr(self, attr) != getattr(other, attr, sentry):
-                return False
-        return True
+        return all(
+            getattr(self, attr) == getattr(other, attr, sentry)
+            for attr in self._all_slots()
+        )
 
     def __repr__(self):
-        return '%s(%s)' % (
-            self.__class__.__name__,
-            ', '.join(repr(getattr(self, attr)) for attr in self._all_slots())
-        )
+        return f"{self.__class__.__name__}({', '.join((repr(getattr(self, attr)) for attr in self._all_slots()))})"
 
     def _all_slots(self):
         """Return all slots for an object (for it's class and all parent classes). Useful in auxiliary methods."""
@@ -215,7 +212,7 @@ class FileVersion(BaseFileVersion):
             'file_retention': self.file_retention,
             'legal_hold': self.legal_hold,
         }
-        return self.__class__(**{**args, **new_attributes})
+        return self.__class__(**args | new_attributes)
 
     def as_dict(self):
         result = super().as_dict()
@@ -328,7 +325,7 @@ class DownloadVersion(BaseFileVersion):
             'file_retention': self.file_retention,
             'legal_hold': self.legal_hold,
         }
-        return self.__class__(**{**args, **new_attributes})
+        return self.__class__(**args | new_attributes)
 
 
 class FileVersionFactory(object):
@@ -492,4 +489,4 @@ class FileIdAndName(object):
         return (self.file_id == other.file_id and self.file_name == other.file_name)
 
     def __repr__(self):
-        return '%s(%s, %s)' % (self.__class__.__name__, repr(self.file_id), repr(self.file_name))
+        return f'{self.__class__.__name__}({repr(self.file_id)}, {repr(self.file_name)})'

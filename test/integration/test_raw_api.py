@@ -69,8 +69,9 @@ def authorize_raw_api(raw_api):
 
     realm = os.environ.get('B2_TEST_ENVIRONMENT', 'production')
     realm_url = REALM_URLS.get(realm, realm)
-    auth_dict = raw_api.authorize_account(realm_url, application_key_id, application_key)
-    return auth_dict
+    return raw_api.authorize_account(
+        realm_url, application_key_id, application_key
+    )
 
 
 def raw_api_test_helper(raw_api, should_cleanup_old_buckets):
@@ -373,7 +374,7 @@ def _cleanup_old_buckets(raw_api, auth_dict, bucket_list_dict):
         bucket_id = bucket_dict['bucketId']
         bucket_name = bucket_dict['bucketName']
         if _should_delete_bucket(bucket_name):
-            print('cleaning up old bucket: ' + bucket_name)
+            print(f'cleaning up old bucket: {bucket_name}')
             _clean_and_delete_bucket(
                 raw_api,
                 auth_dict['apiUrl'],
@@ -421,6 +422,6 @@ def _should_delete_bucket(bucket_name):
         return False
 
     # Is it more than an hour old?
-    bucket_time = int(match.group(1))
+    bucket_time = int(match[1])
     now = time.time()
     return bucket_time + 3600 <= now

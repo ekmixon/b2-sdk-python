@@ -43,9 +43,7 @@ class File(object):
         return self.versions[0]
 
     def __repr__(self):
-        return '%s(%s, [%s])' % (
-            self.__class__.__name__, self.name, ', '.join(repr(v) for v in self.versions)
-        )
+        return f"{self.__class__.__name__}({self.name}, [{', '.join((repr(v) for v in self.versions))}])"
 
 
 class B2File(File):
@@ -94,13 +92,7 @@ class FileVersion(object):
         self.size = size
 
     def __repr__(self):
-        return '%s(%s, %s, %s, %s)' % (
-            self.__class__.__name__,
-            repr(self.id_),
-            repr(self.name),
-            repr(self.mod_time),
-            repr(self.action),
-        )
+        return f'{self.__class__.__name__}({repr(self.id_)}, {repr(self.name)}, {repr(self.mod_time)}, {repr(self.action)})'
 
 
 class B2FileVersion(FileVersion):

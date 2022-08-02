@@ -121,10 +121,7 @@ class ChainedStream(ReadOnlyStreamMixin, io.IOBase):
                     if self.stream is current_stream:
                         break
 
-        if not byte_arrays:
-            data = byte_arrays[0]
-        else:
-            data = bytes().join(byte_arrays)
+        data = bytes().join(byte_arrays) if byte_arrays else byte_arrays[0]
         self._pos += len(data)
         return data
 

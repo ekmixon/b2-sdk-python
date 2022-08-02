@@ -84,7 +84,7 @@ class UploadManager(metaclass=B2TraceMetaAbstract):
         file_retention: Optional[FileRetentionSetting] = None,
         legal_hold: Optional[LegalHold] = None,
     ):
-        f = self.get_thread_pool().submit(
+        return self.get_thread_pool().submit(
             self._upload_small_file,
             bucket_id,
             upload_source,
@@ -96,7 +96,6 @@ class UploadManager(metaclass=B2TraceMetaAbstract):
             file_retention,
             legal_hold,
         )
-        return f
 
     def upload_part(
         self,
@@ -108,7 +107,7 @@ class UploadManager(metaclass=B2TraceMetaAbstract):
         finished_parts=None,
         encryption: EncryptionSetting = None,
     ):
-        f = self.get_thread_pool().submit(
+        return self.get_thread_pool().submit(
             self._upload_part,
             bucket_id,
             file_id,
@@ -118,7 +117,6 @@ class UploadManager(metaclass=B2TraceMetaAbstract):
             finished_parts,
             encryption,
         )
-        return f
 
     def _upload_part(
         self,
@@ -245,8 +243,10 @@ class UploadManager(metaclass=B2TraceMetaAbstract):
                         )
                         if content_sha1 == HEX_DIGITS_AT_END:
                             content_sha1 = input_stream.hash
-                        assert content_sha1 == response[
-                            'contentSha1'], '%s != %s' % (content_sha1, response['contentSha1'])
+                        assert (
+                            content_sha1 == response['contentSha1']
+                        ), f"{content_sha1} != {response['contentSha1']}"
+
                         return self.services.api.file_version_factory.from_api_response(response)
 
                 except B2Error as e:

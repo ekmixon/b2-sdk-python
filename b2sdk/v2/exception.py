@@ -17,7 +17,7 @@ v3BucketIdNotFound = BucketIdNotFound
 class BucketIdNotFound(v3BucketIdNotFound, BadRequest):
     def __init__(self, bucket_id):
         super().__init__(bucket_id)
-        self.message = 'Bucket with id=%s not found' % (bucket_id,)
+        self.message = f'Bucket with id={bucket_id} not found'
         self.code = 'bad_bucket_id'
 
     def __str__(self):

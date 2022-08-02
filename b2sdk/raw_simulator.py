@@ -238,16 +238,20 @@ class FileSimulator(object):
             not_permitted = []
 
             if not self.is_allowed_to_read_file_retention(account_auth_token_or_none):
-                not_permitted.append('X-Bz-File-Retention-Mode')
-                not_permitted.append('X-Bz-File-Retain-Until-Timestamp')
-            else:
-                if self.file_retention is not None:
-                    self.file_retention.add_to_to_upload_headers(headers)
+                not_permitted.extend(
+                    (
+                        'X-Bz-File-Retention-Mode',
+                        'X-Bz-File-Retain-Until-Timestamp',
+                    )
+                )
+
+            elif self.file_retention is not None:
+                self.file_retention.add_to_to_upload_headers(headers)
 
             if not self.is_allowed_to_read_file_legal_hold(account_auth_token_or_none):
                 not_permitted.append('X-Bz-File-Legal-Hold')
             else:
-                headers['X-Bz-File-Legal-Hold'] = self.legal_hold and 'on' or 'off'
+                headers['X-Bz-File-Legal-Hold'] = 'on' if self.legal_hold else 'off'
 
             if not_permitted:
                 headers['X-Bz-Client-Unauthorized-To-Read'] = ','.join(not_permitted)
@@ -260,12 +264,14 @@ class FileSimulator(object):
                        ] = self.server_side_encryption.algorithm.value
                 headers['X-Bz-Server-Side-Encryption-Customer-Key-Md5'
                        ] = self.server_side_encryption.key.key_md5()
-            elif self.server_side_encryption.mode in (EncryptionMode.NONE, EncryptionMode.UNKNOWN):
-                pass
-            else:
+            elif self.server_side_encryption.mode not in (
+                EncryptionMode.NONE,
+                EncryptionMode.UNKNOWN,
+            ):
                 raise ValueError(
-                    'Unsupported encryption mode: %s' % (self.server_side_encryption.mode,)
+                    f'Unsupported encryption mode: {self.server_side_encryption.mode}'
                 )
+
 
         if range_ is not None:
             headers['Content-Range'] = 'bytes %d-%d/%d' % (
@@ -354,15 +360,17 @@ class FileSimulator(object):
         return file_lock_configuration
 
     def _legal_hold_dict(self, account_auth_token):
-        if not self.is_allowed_to_read_file_legal_hold(account_auth_token):
-            return {
+        return (
+            {
+                'isClientAuthorizedToRead': True,
+                'value': self.legal_hold.value,
+            }
+            if self.is_allowed_to_read_file_legal_hold(account_auth_token)
+            else {
                 'isClientAuthorizedToRead': False,
                 'value': None,
             }
-        return {
-            'isClientAuthorizedToRead': True,
-            'value': self.legal_hold.value,
-        }
+        )
 
     def add_part(self, part_number, part):
         while len(self.parts) < part_number + 1:
@@ -421,16 +429,13 @@ class FileSimulator(object):
             if request_mode != EncryptionMode.SSE_C or file_secret != request_secret:
                 raise SSECKeyError()
         else:
-            raise ValueError('Unsupported EncryptionMode: %s' % (file_mode))
+            raise ValueError(f'Unsupported EncryptionMode: {file_mode}')
 
     def _get_encryption_mode_and_secret(self, encryption: Optional[EncryptionSetting]):
         if encryption is None:
             return None, None
         mode = encryption.mode
-        if encryption.key is None:
-            secret = None
-        else:
-            secret = encryption.key.secret
+        secret = None if encryption.key is None else encryption.key.secret
         return mode, secret
 
 
@@ -505,9 +510,9 @@ class BucketSimulator(object):
         # File IDs count down, so that the most recent will come first when they are sorted.
         self.file_id_counter = iter(range(self.FIRST_FILE_NUMBER, 0, -1))
         self.upload_timestamp_counter = iter(range(5000, 9999))
-        self.file_id_to_file = dict()
+        self.file_id_to_file = {}
         # It would be nice to use an OrderedDict for this, but 2.6 doesn't have it.
-        self.file_name_and_id_to_file = dict()
+        self.file_name_and_id_to_file = {}
         if default_server_side_encryption is None:
             default_server_side_encryption = EncryptionSetting(mode=EncryptionMode.NONE)
         self.default_server_side_encryption = default_server_side_encryption
@@ -785,7 +790,7 @@ class BucketSimulator(object):
                 if file_sim.is_visible():
                     result_files.append(file_sim.as_list_files_dict(account_auth_token))
                     if len(result_files) == max_file_count:
-                        next_file_name = file_sim.name + ' '
+                        next_file_name = f'{file_sim.name} '
                         break
         return dict(files=result_files, nextFileName=next_file_name)
 
@@ -830,11 +835,14 @@ class BucketSimulator(object):
     ):
         start_file_id = start_file_id or self.FIRST_FILE_ID
         max_file_count = max_file_count or 100
-        all_unfinished_ids = set(
-            k for (k, v) in self.file_id_to_file.items()
-            if v.action == 'start' and k <= start_file_id and
-            (prefix is None or v.name.startswith(prefix))
-        )
+        all_unfinished_ids = {
+            k
+            for (k, v) in self.file_id_to_file.items()
+            if v.action == 'start'
+            and k <= start_file_id
+            and (prefix is None or v.name.startswith(prefix))
+        }
+
         ids_in_order = sorted(all_unfinished_ids, reverse=True)
 
         file_dict_list = [
@@ -917,7 +925,7 @@ class BucketSimulator(object):
         assert len(data_bytes) == content_length
         if content_sha1 == HEX_DIGITS_AT_END:
             content_sha1 = data_bytes[-40:].decode()
-            data_bytes = data_bytes[0:-40]
+            data_bytes = data_bytes[:-40]
             content_length -= 40
         elif len(content_sha1) != 40:
             raise ValueError(content_sha1)
@@ -963,7 +971,7 @@ class BucketSimulator(object):
         assert len(part_data) == content_length
         if sha1_sum == HEX_DIGITS_AT_END:
             sha1_sum = part_data[-40:].decode()
-            part_data = part_data[0:-40]
+            part_data = part_data[:-40]
             content_length -= 40
         computed_sha1 = hex_sha1_of_bytes(part_data)
         if sha1_sum != computed_sha1:
@@ -1048,10 +1056,10 @@ class RawSimulator(AbstractRawApi):
         # The entry for the master application key ID is for the master application
         # key for the account, and the entries with non-master application keys
         # are for keys created b2 createKey().
-        self.key_id_to_key = dict()
+        self.key_id_to_key = {}
 
         # Map from auth token to the KeySimulator for it.
-        self.auth_token_to_key = dict()
+        self.auth_token_to_key = {}
 
         # Set of auth tokens that have expired
         self.expired_auth_tokens = set()
@@ -1066,8 +1074,8 @@ class RawSimulator(AbstractRawApi):
         # Counter for generating account IDs an their matching master application keys.
         self.account_counter = 0
 
-        self.bucket_name_to_bucket = dict()
-        self.bucket_id_to_bucket = dict()
+        self.bucket_name_to_bucket = {}
+        self.bucket_id_to_bucket = {}
         self.bucket_id_counter = iter(range(100))
         self.file_id_to_bucket_id = {}
         self.all_application_keys = []
@@ -1165,11 +1173,11 @@ class RawSimulator(AbstractRawApi):
         is_file_lock_enabled: Optional[bool] = None,
     ):
         if not re.match(r'^[-a-zA-Z0-9]*$', bucket_name):
-            raise BadJson('illegal bucket name: ' + bucket_name)
+            raise BadJson(f'illegal bucket name: {bucket_name}')
         self._assert_account_auth(api_url, account_auth_token, account_id, 'writeBuckets')
         if bucket_name in self.bucket_name_to_bucket:
             raise DuplicateBucketName(bucket_name)
-        bucket_id = 'bucket_' + str(next(self.bucket_id_counter))
+        bucket_id = f'bucket_{str(next(self.bucket_id_counter))}'
         bucket = self.BUCKET_SIMULATOR_CLASS(
             self,
             account_id,
@@ -1199,12 +1207,14 @@ class RawSimulator(AbstractRawApi):
         name_prefix,
     ):
         if not re.match(r'^[A-Za-z0-9-]{1,100}$', key_name):
-            raise BadJson('illegal key name: ' + key_name)
-        if valid_duration_seconds is not None:
-            if valid_duration_seconds < 1 or valid_duration_seconds > self.MAX_DURATION_IN_SECONDS:
-                raise BadJson(
-                    'valid duration must be greater than 0, and less than 1000 days in seconds'
-                )
+            raise BadJson(f'illegal key name: {key_name}')
+        if valid_duration_seconds is not None and (
+            valid_duration_seconds < 1
+            or valid_duration_seconds > self.MAX_DURATION_IN_SECONDS
+        ):
+            raise BadJson(
+                'valid duration must be greater than 0, and less than 1000 days in seconds'
+            )
         self._assert_account_auth(api_url, account_auth_token, account_id, 'writeKeys')
 
         if valid_duration_seconds is None:
@@ -1325,9 +1335,10 @@ class RawSimulator(AbstractRawApi):
         key_sim = self.key_id_to_key.pop(application_key_id, None)
         if key_sim is None:
             raise BadRequest(
-                'application key does not exist: %s' % (application_key_id,),
+                f'application key does not exist: {application_key_id}',
                 'bad_request',
             )
+
         return key_sim.as_key()
 
     def finish_large_file(self, api_url, account_auth_token, file_id, part_sha1_array):
@@ -1361,8 +1372,7 @@ class RawSimulator(AbstractRawApi):
 
     def get_file_info_by_name(self, api_url, account_auth_token, bucket_name, file_name):
         bucket = self._get_bucket_by_name(bucket_name)
-        info = bucket.get_file_info_by_name(account_auth_token, file_name)
-        return info
+        return bucket.get_file_info_by_name(account_auth_token, file_name)
 
     def get_upload_url(self, api_url, account_auth_token, bucket_id):
         bucket = self._get_bucket_by_id(bucket_id)
@@ -1740,9 +1750,12 @@ class RawSimulator(AbstractRawApi):
             raise Unauthorized('', 'unauthorized')
         if key_sim.bucket_id_or_none is not None and key_sim.bucket_id_or_none != bucket_id:
             raise Unauthorized('', 'unauthorized')
-        if key_sim.name_prefix_or_none is not None:
-            if file_name is not None and not file_name.startswith(key_sim.name_prefix_or_none):
-                raise Unauthorized('', 'unauthorized')
+        if (
+            key_sim.name_prefix_or_none is not None
+            and file_name is not None
+            and not file_name.startswith(key_sim.name_prefix_or_none)
+        ):
+            raise Unauthorized('', 'unauthorized')
 
     def _get_bucket_by_id(self, bucket_id):
         if bucket_id not in self.bucket_id_to_bucket:

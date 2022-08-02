@@ -68,10 +68,7 @@ def sqlite_account_info_factory(tmpdir):
     def get_account_info(file_name=None, schema_0=False):
         if file_name is None:
             file_name = str(tmpdir.join('b2_account_info'))
-        if schema_0:
-            last_upgrade_to_run = 0
-        else:
-            last_upgrade_to_run = None
+        last_upgrade_to_run = 0 if schema_0 else None
         return SqliteAccountInfo(file_name, last_upgrade_to_run)
 
     return get_account_info

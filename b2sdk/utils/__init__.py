@@ -119,8 +119,9 @@ def hex_sha1_of_stream(input_stream, content_length):
         data = input_stream.read(to_read)
         if len(data) != to_read:
             raise ValueError(
-                'content_length(%s) is more than the size of the file' % content_length
+                f'content_length({content_length}) is more than the size of the file'
             )
+
         digest.update(data)
         remaining -= to_read
     return digest.hexdigest()
@@ -192,7 +193,7 @@ def validate_b2_file_name(name):
     name_utf8 = name.encode('utf-8')
     if len(name_utf8) < 1:
         raise ValueError('file name too short (0 utf-8 bytes)')
-    if 1000 < len(name_utf8):
+    if len(name_utf8) > 1000:
         raise ValueError('file name too long (more than 1000 utf-8 bytes)')
     if name[0] == '/':
         raise ValueError("file names must not start with '/'")
@@ -204,7 +205,7 @@ def validate_b2_file_name(name):
         raise ValueError("file names must not contain '//'")
     if chr(127) in name:
         raise ValueError("file names must not contain DEL")
-    if any(250 < len(segment) for segment in name_utf8.split(b'/')):
+    if any(len(segment) > 250 for segment in name_utf8.split(b'/')):
         raise ValueError("file names segments (between '/') can be at most 250 utf-8 bytes")
 
 
@@ -275,17 +276,16 @@ def fix_windows_path_limit(path):
     :return: a prefixed path
     :rtype: str
     """
-    if platform.system() == 'Windows':
-        if path.startswith('\\\\'):
-            # UNC network path
-            return '\\\\?\\UNC\\' + path[2:]
-        elif os.path.isabs(path):
-            # local absolute path
-            return '\\\\?\\' + path
-        else:
-            # relative path, don't alter
-            return path
+    if platform.system() != 'Windows':
+        return path
+    if path.startswith('\\\\'):
+        # UNC network path
+        return '\\\\?\\UNC\\' + path[2:]
+    elif os.path.isabs(path):
+        # local absolute path
+        return '\\\\?\\' + path
     else:
+        # relative path, don't alter
         return path
 
 

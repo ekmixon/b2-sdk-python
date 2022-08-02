@@ -58,18 +58,20 @@ def zip_folders(folder_a, folder_b, reporter, policies_manager=DEFAULT_SCAN_MANA
     current_b = next_or_none(iter_b)
 
     while current_a is not None or current_b is not None:
-        if current_a is None:
+        if (
+            current_a is None
+            or current_b is not None
+            and current_a.relative_path >= current_b.relative_path
+            and current_b.relative_path < current_a.relative_path
+        ):
             yield (None, current_b)
             current_b = next_or_none(iter_b)
-        elif current_b is None:
+        elif (
+            current_b is None
+            or current_a.relative_path < current_b.relative_path
+        ):
             yield (current_a, None)
             current_a = next_or_none(iter_a)
-        elif current_a.relative_path < current_b.relative_path:
-            yield (current_a, None)
-            current_a = next_or_none(iter_a)
-        elif current_b.relative_path < current_a.relative_path:
-            yield (None, current_b)
-            current_b = next_or_none(iter_b)
         else:
             assert current_a.relative_path == current_b.relative_path
             yield (current_a, current_b)
@@ -167,25 +169,28 @@ class Synchronizer:
         if self.newer_file_mode not in tuple(NewerFileSyncMode):
             raise InvalidArgument(
                 'newer_file_mode',
-                'must be one of :%s' % NewerFileSyncMode.__members__,
+                f'must be one of :{NewerFileSyncMode.__members__}',
             )
+
 
         if self.keep_days_or_delete not in tuple(KeepOrDeleteMode):
             raise InvalidArgument(
                 'keep_days_or_delete',
-                'must be one of :%s' % KeepOrDeleteMode.__members__,
+                f'must be one of :{KeepOrDeleteMode.__members__}',
             )
+
 
         if self.keep_days_or_delete == KeepOrDeleteMode.KEEP_BEFORE_DELETE and self.keep_days is None:
             raise InvalidArgument(
                 'keep_days',
-                'is required when keep_days_or_delete is %s' % KeepOrDeleteMode.KEEP_BEFORE_DELETE,
+                f'is required when keep_days_or_delete is {KeepOrDeleteMode.KEEP_BEFORE_DELETE}',
             )
+
 
         if self.compare_version_mode not in tuple(CompareVersionMode):
             raise InvalidArgument(
                 'compare_version_mode',
-                'must be one of :%s' % CompareVersionMode.__members__,
+                f'must be one of :{CompareVersionMode.__members__}',
             )
 
     def sync_folders(
@@ -289,7 +294,7 @@ class Synchronizer:
 
         source_type = source_folder.folder_type()
         dest_type = dest_folder.folder_type()
-        sync_type = '%s-to-%s' % (source_type, dest_type)
+        sync_type = f'{source_type}-to-{dest_type}'
         if source_type != 'b2' and dest_type != 'b2':
             raise ValueError('Sync between two local folders is not supported!')
 

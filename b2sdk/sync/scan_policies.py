@@ -71,10 +71,7 @@ def convert_dir_regex_to_dir_prefix_regex(dir_regex):
     :param dir_regex: a regular expression string or literal
     :type dir_regex: str
     """
-    if dir_regex.endswith('$'):
-        return dir_regex[:-1] + r'/'
-    else:
-        return dir_regex + r'.*?/'
+    return f'{dir_regex[:-1]}/' if dir_regex.endswith('$') else f'{dir_regex}.*?/'
 
 
 class IntegerRange(object):

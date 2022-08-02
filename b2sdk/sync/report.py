@@ -102,39 +102,40 @@ class SyncReport:
                 self._update_progress()
 
     def _update_progress(self):
-        if not self.closed and not self.no_progress:
-            now = time.time()
-            interval = now - self._last_update_time
-            if self.UPDATE_INTERVAL <= interval:
-                self._last_update_time = now
-                time_delta = time.time() - self.start_time
-                rate = 0 if time_delta == 0 else int(self.transfer_bytes / time_delta)
-                if not self.total_done:
-                    message = ' count: %d files   compare: %d files   updated: %d files   %s   %s' % (
-                        self.total_count,
-                        self.compare_count,
-                        self.transfer_files,
-                        format_and_scale_number(self.transfer_bytes, 'B'),
-                        format_and_scale_number(rate, 'B/s')
-                    )  # yapf: disable
-                elif not self.compare_done:
-                    message = ' compare: %d/%d files   updated: %d files   %s   %s' % (
-                        self.compare_count,
-                        self.total_count,
-                        self.transfer_files,
-                        format_and_scale_number(self.transfer_bytes, 'B'),
-                        format_and_scale_number(rate, 'B/s')
-                    )  # yapf: disable
-                else:
-                    message = ' compare: %d/%d files   updated: %d/%d files   %s   %s' % (
-                        self.compare_count,
-                        self.total_count,
-                        self.transfer_files,
-                        self.total_transfer_files,
-                        format_and_scale_fraction(self.transfer_bytes, self.total_transfer_bytes, 'B'),
-                        format_and_scale_number(rate, 'B/s')
-                    )  # yapf: disable
-                self._print_line(message, False)
+        if self.closed or self.no_progress:
+            return
+        now = time.time()
+        interval = now - self._last_update_time
+        if self.UPDATE_INTERVAL <= interval:
+            self._last_update_time = now
+            time_delta = time.time() - self.start_time
+            rate = 0 if time_delta == 0 else int(self.transfer_bytes / time_delta)
+            if not self.total_done:
+                message = ' count: %d files   compare: %d files   updated: %d files   %s   %s' % (
+                    self.total_count,
+                    self.compare_count,
+                    self.transfer_files,
+                    format_and_scale_number(self.transfer_bytes, 'B'),
+                    format_and_scale_number(rate, 'B/s')
+                )  # yapf: disable
+            elif not self.compare_done:
+                message = ' compare: %d/%d files   updated: %d files   %s   %s' % (
+                    self.compare_count,
+                    self.total_count,
+                    self.transfer_files,
+                    format_and_scale_number(self.transfer_bytes, 'B'),
+                    format_and_scale_number(rate, 'B/s')
+                )  # yapf: disable
+            else:
+                message = ' compare: %d/%d files   updated: %d/%d files   %s   %s' % (
+                    self.compare_count,
+                    self.total_count,
+                    self.transfer_files,
+                    self.total_transfer_files,
+                    format_and_scale_fraction(self.transfer_bytes, self.total_transfer_bytes, 'B'),
+                    format_and_scale_number(rate, 'B/s')
+                )  # yapf: disable
+            self._print_line(message, False)
 
     def _print_line(self, line, newline):
         """
@@ -158,9 +159,9 @@ class SyncReport:
                 )
             self.stdout.write(line.encode('ascii', 'backslashreplace').decode())
             logger.warning(
-                'could not output the following line with encoding %s on stdout due to %s: %s' %
-                (self.stdout.encoding, encode_error, line)
+                f'could not output the following line with encoding {self.stdout.encoding} on stdout due to {encode_error}: {line}'
             )
+
         if newline:
             self.stdout.write('\n')
             self.current_line = ''
@@ -235,7 +236,9 @@ class SyncReport:
         :param path: file path
         :type path: str
         """
-        self.warnings.append('WARNING: %s could not be accessed (broken symlink?)' % (path,))
+        self.warnings.append(
+            f'WARNING: {path} could not be accessed (broken symlink?)'
+        )
 
     def local_permission_error(self, path):
         """
@@ -245,7 +248,7 @@ class SyncReport:
         :type path: str
         """
         self.warnings.append(
-            'WARNING: %s could not be accessed (no permissions to read?)' % (path,)
+            f'WARNING: {path} could not be accessed (no permissions to read?)'
         )
 
     def symlink_skipped(self, path):
@@ -313,7 +316,7 @@ def sample_sync_report_run():
         time.sleep(0.2)
         if i == 3:
             sync_report.print_completion('transferred: b.txt')
-        if i == 4:
+        elif i == 4:
             sync_report.update_transfer(25, 25000)
     sync_report.end_compare(50, 50000)
 

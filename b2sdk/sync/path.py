@@ -29,9 +29,7 @@ class AbstractSyncPath(ABC):
         """Is the path visible/not deleted on it's storage"""
 
     def __repr__(self):
-        return '%s(%s, %s, %s)' % (
-            self.__class__.__name__, repr(self.relative_path), repr(self.mod_time), repr(self.size)
-        )
+        return f'{self.__class__.__name__}({repr(self.relative_path)}, {repr(self.mod_time)}, {repr(self.size)})'
 
 
 class LocalSyncPath(AbstractSyncPath):
@@ -75,13 +73,12 @@ class B2SyncPath(AbstractSyncPath):
 
     def __repr__(self):
         return '%s(%s, [%s])' % (
-            self.__class__.__name__, self.relative_path, ', '.join(
-                '(%s, %s, %s)' % (
-                    repr(fv.id_),
-                    repr(fv.mod_time_millis),
-                    repr(fv.action),
-                ) for fv in self.all_versions
-            )
+            self.__class__.__name__,
+            self.relative_path,
+            ', '.join(
+                f'({repr(fv.id_)}, {repr(fv.mod_time_millis)}, {repr(fv.action)})'
+                for fv in self.all_versions
+            ),
         )
 
     def __eq__(self, other):

@@ -78,13 +78,13 @@ class SyncPolicyManager(object):
         :param int keep_days: keep for `keep_days` before delete
         :return: a policy class
         """
-        if sync_type == 'local-to-b2':
+        if sync_type == 'b2-to-b2':
             if delete:
-                return UpAndDeletePolicy
+                return CopyAndDeletePolicy
             elif keep_days:
-                return UpAndKeepDaysPolicy
+                return CopyAndKeepDaysPolicy
             else:
-                return UpPolicy
+                return CopyPolicy
         elif sync_type == 'b2-to-local':
             if delete:
                 return DownAndDeletePolicy
@@ -92,19 +92,15 @@ class SyncPolicyManager(object):
                 return DownAndKeepDaysPolicy
             else:
                 return DownPolicy
-        elif sync_type == 'b2-to-b2':
+        elif sync_type == 'local-to-b2':
             if delete:
-                return CopyAndDeletePolicy
+                return UpAndDeletePolicy
             elif keep_days:
-                return CopyAndKeepDaysPolicy
+                return UpAndKeepDaysPolicy
             else:
-                return CopyPolicy
+                return UpPolicy
         raise NotImplementedError(
-            'invalid sync type: %s, keep_days: %s, delete: %s' % (
-                sync_type,
-                keep_days,
-                delete,
-            )
+            f'invalid sync type: {sync_type}, keep_days: {keep_days}, delete: {delete}'
         )
 
 

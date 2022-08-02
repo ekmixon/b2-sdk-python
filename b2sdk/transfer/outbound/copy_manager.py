@@ -192,11 +192,11 @@ class CopyManager(metaclass=B2TraceMetaAbstract):
                         'File info can be set only when content type is set'
                     )
                 metadata_directive = MetadataDirectiveMode.COPY
+            elif file_info is None:
+                raise CopyArgumentsMismatch(
+                    'File info can be not set only when content type is not set'
+                )
             else:
-                if file_info is None:
-                    raise CopyArgumentsMismatch(
-                        'File info can be not set only when content type is not set'
-                    )
                 metadata_directive = MetadataDirectiveMode.REPLACE
             metadata_directive, file_info, content_type = self.establish_sse_c_file_metadata(
                 metadata_directive=metadata_directive,
@@ -250,11 +250,11 @@ class CopyManager(metaclass=B2TraceMetaAbstract):
         destination_key_id = None
 
         if destination_server_side_encryption is not None and destination_server_side_encryption.key is not None and \
-                destination_server_side_encryption.key.key_id is not None:
+                    destination_server_side_encryption.key.key_id is not None:
             destination_key_id = destination_server_side_encryption.key.key_id
 
         if source_server_side_encryption is not None and source_server_side_encryption.key is not None and \
-                source_server_side_encryption.key.key_id is not None:
+                    source_server_side_encryption.key.key_id is not None:
             source_key_id = source_server_side_encryption.key.key_id
 
         if source_key_id == destination_key_id:

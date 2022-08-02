@@ -133,7 +133,6 @@ class AbstractFileSyncPolicy(metaclass=ABCMeta):
         if compare_version_mode == CompareVersionMode.NONE:
             return False
 
-        # Compare using modification time
         elif compare_version_mode == CompareVersionMode.MODTIME:
             # Get the modification time of the latest versions
             source_mod_time = source_path.mod_time
@@ -153,21 +152,23 @@ class AbstractFileSyncPolicy(metaclass=ABCMeta):
 
             if compare_threshold_exceeded:
                 # Source is newer
-                if dest_mod_time < source_mod_time:
+                if (
+                    dest_mod_time >= source_mod_time
+                    and source_mod_time < dest_mod_time
+                    and newer_file_mode == NewerFileSyncMode.REPLACE
+                    or dest_mod_time < source_mod_time
+                ):
                     return True
-
-                # Source is older
+                elif (
+                    source_mod_time < dest_mod_time
+                    and newer_file_mode == NewerFileSyncMode.SKIP
+                ):
+                    return False
                 elif source_mod_time < dest_mod_time:
-                    if newer_file_mode == NewerFileSyncMode.REPLACE:
-                        return True
-                    elif newer_file_mode == NewerFileSyncMode.SKIP:
-                        return False
-                    else:
-                        raise DestFileNewer(
-                            dest_path, source_path, cls.DESTINATION_PREFIX, cls.SOURCE_PREFIX
-                        )
+                    raise DestFileNewer(
+                        dest_path, source_path, cls.DESTINATION_PREFIX, cls.SOURCE_PREFIX
+                    )
 
-        # Compare using file size
         elif compare_version_mode == CompareVersionMode.SIZE:
             # Get file size of the latest versions
             source_size = source_path.size
@@ -200,8 +201,7 @@ class AbstractFileSyncPolicy(metaclass=ABCMeta):
 
         assert self._dest_path is not None or self._source_path is not None
 
-        for action in self._get_hide_delete_actions():
-            yield action
+        yield from self._get_hide_delete_actions()
 
     def _get_hide_delete_actions(self):
         """
@@ -259,15 +259,13 @@ class UpAndDeletePolicy(UpPolicy):
     """
 
     def _get_hide_delete_actions(self):
-        for action in super(UpAndDeletePolicy, self)._get_hide_delete_actions():
-            yield action
-        for action in make_b2_delete_actions(
+        yield from super(UpAndDeletePolicy, self)._get_hide_delete_actions()
+        yield from make_b2_delete_actions(
             self._source_path,
             self._dest_path,
             self._dest_folder,
             self._transferred,
-        ):
-            yield action
+        )
 
 
 class UpAndKeepDaysPolicy(UpPolicy):
@@ -276,17 +274,15 @@ class UpAndKeepDaysPolicy(UpPolicy):
     """
 
     def _get_hide_delete_actions(self):
-        for action in super(UpAndKeepDaysPolicy, self)._get_hide_delete_actions():
-            yield action
-        for action in make_b2_keep_days_actions(
+        yield from super(UpAndKeepDaysPolicy, self)._get_hide_delete_actions()
+        yield from make_b2_keep_days_actions(
             self._source_path,
             self._dest_path,
             self._dest_folder,
             self._transferred,
             self._keep_days,
             self._now_millis,
-        ):
-            yield action
+        )
 
 
 class DownAndDeletePolicy(DownPolicy):
@@ -295,8 +291,7 @@ class DownAndDeletePolicy(DownPolicy):
     """
 
     def _get_hide_delete_actions(self):
-        for action in super(DownAndDeletePolicy, self)._get_hide_delete_actions():
-            yield action
+        yield from super(DownAndDeletePolicy, self)._get_hide_delete_actions()
         if self._dest_path is not None and (
             self._source_path is None or not self._source_path.is_visible()
         ):
@@ -338,15 +333,13 @@ class CopyAndDeletePolicy(CopyPolicy):
     """
 
     def _get_hide_delete_actions(self):
-        for action in super()._get_hide_delete_actions():
-            yield action
-        for action in make_b2_delete_actions(
+        yield from super()._get_hide_delete_actions()
+        yield from make_b2_delete_actions(
             self._source_path,
             self._dest_path,
             self._dest_folder,
             self._transferred,
-        ):
-            yield action
+        )
 
 
 class CopyAndKeepDaysPolicy(CopyPolicy):
@@ -355,17 +348,15 @@ class CopyAndKeepDaysPolicy(CopyPolicy):
     """
 
     def _get_hide_delete_actions(self):
-        for action in super()._get_hide_delete_actions():
-            yield action
-        for action in make_b2_keep_days_actions(
+        yield from super()._get_hide_delete_actions()
+        yield from make_b2_keep_days_actions(
             self._source_path,
             self._dest_path,
             self._dest_folder,
             self._transferred,
             self._keep_days,
             self._now_millis,
-        ):
-            yield action
+        )
 
 
 def make_b2_delete_note(version, index, transferred):
@@ -379,7 +370,7 @@ def make_b2_delete_note(version, index, transferred):
     note = ''
     if version.action == 'hide':
         note = '(hide marker)'
-    elif transferred or 0 < index:
+    elif transferred or index > 0:
         note = '(old version)'
     return note
 
@@ -467,9 +458,8 @@ def make_b2_keep_days_actions(
 
         # Can we start deleting? Once we start deleting, all older
         # versions will also be deleted.
-        if version.action == 'hide':
-            if keep_days < age_days:
-                deleting = True
+        if version.action == 'hide' and keep_days < age_days:
+            deleting = True
 
         # Delete this version
         if deleting:

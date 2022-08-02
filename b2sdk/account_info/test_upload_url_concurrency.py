@@ -53,7 +53,7 @@ def test_upload_url_concurrency():
         t.join()
 
     # Check
-    if len(available_urls) != 0:
+    if available_urls:
         print('LEAK:', available_urls)
 
     # Clean up

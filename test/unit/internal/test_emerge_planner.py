@@ -259,10 +259,7 @@ class TestEmergePlanner(TestBase):
 
         unit_part_size = int(self.recommended_size / 8)
         uneven_part_size = 3 * unit_part_size
-        sources = [
-            UploadSource(uneven_part_size)
-            for i in range(8)
-        ]
+        sources = [UploadSource(uneven_part_size) for _ in range(8)]
 
         self.verify_emerge_plan_for_write_intents(
             WriteIntent.wrap_sources_iterator(sources),
@@ -335,7 +332,7 @@ class TestEmergePlanner(TestBase):
         self.assertEqual(self.recommended_size % 4, 0)
 
         shift = int(self.recommended_size / 4)
-        sources = [UploadSource(self.recommended_size) for i in range(4)]
+        sources = [UploadSource(self.recommended_size) for _ in range(4)]
         write_intents = [
             WriteIntent(source, destination_offset=i * shift)
             for i, source in enumerate(sources)
@@ -554,11 +551,8 @@ class TestEmergePlanner(TestBase):
             WriteIntent(source_copy2, destination_offset=self.recommended_size + 3 * MEGABYTE),
         ]
 
-        hole_msg = ('Cannot emerge file with holes. '
-                    'Found hole range: ({}, {})'.format(
-                        write_intents[2].destination_end_offset,
-                        write_intents[1].destination_offset,
-                    ))
+        hole_msg = f'Cannot emerge file with holes. Found hole range: ({write_intents[2].destination_end_offset}, {write_intents[1].destination_offset})'
+
         with self.assertRaises(ValueError, hole_msg):
             self.planner.get_emerge_plan(write_intents)
 
